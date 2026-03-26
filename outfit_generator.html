@@ -1,0 +1,1609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Outfit Generator</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #111; padding: 2rem; max-width: 920px; margin: 0 auto; }
+.header { margin-bottom: 1.5rem; }
+.header h1 { font-size: 18px; font-weight: 500; }
+.header p { font-size: 13px; color: #666; margin-top: 4px; }
+.controls { display: flex; gap: 12px; align-items: flex-end; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.05em; }
+select, input[type=number] { height: 36px; padding: 0 10px; border: 0.5px solid #ccc; border-radius: 8px; background: #fff; color: #111; font-size: 14px; font-family: inherit; min-width: 150px; }
+input[type=number] { min-width: 80px; }
+.btn { height: 36px; padding: 0 16px; border: 0.5px solid #ccc; border-radius: 8px; background: #fff; color: #111; font-size: 14px; font-family: inherit; cursor: pointer; white-space: nowrap; }
+.btn:hover { background: #f5f5f5; }
+.btn-primary { background: #111; color: #fff; border-color: #111; }
+.btn-primary:hover { opacity: 0.85; }
+.btn-sm { height: 28px; padding: 0 10px; font-size: 12px; }
+.stats { display: flex; gap: 12px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.stat { background: #f5f5f5; border-radius: 8px; padding: 12px 16px; flex: 1; min-width: 90px; }
+.stat-val { font-size: 20px; font-weight: 500; }
+.stat-label { font-size: 12px; color: #666; margin-top: 2px; }
+.outfit-list { display: flex; flex-direction: column; gap: 8px; }
+.outfit-card { background: #fff; border: 0.5px solid #e0e0e0; border-radius: 12px; overflow: hidden; }
+.outfit-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; cursor: pointer; }
+.outfit-head:hover { background: #f9f9f9; }
+.outfit-num { font-size: 12px; color: #666; font-weight: 500; }
+.outfit-preview { font-size: 13px; color: #111; flex: 1; margin: 0 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.outfit-body { border-top: 0.5px solid #e0e0e0; padding: 12px 14px; }
+.slot-row { display: flex; gap: 10px; padding: 5px 0; border-bottom: 0.5px solid #f0f0f0; }
+.slot-row:last-child { border-bottom: none; }
+.slot-name { font-size: 11px; font-weight: 500; color: #888; text-transform: uppercase; letter-spacing: 0.07em; min-width: 80px; padding-top: 1px; }
+.slot-val { font-size: 13px; color: #111; }
+.prompt-box { margin-top: 10px; background: #f5f5f5; border-radius: 8px; padding: 10px 12px; font-size: 12px; color: #555; line-height: 1.6; }
+.copy-row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+.dl-row { display: flex; gap: 8px; margin-bottom: 1.5rem; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>Outfit generator</h1>
+  <p>Randomized wardrobe packs by demographic</p>
+</div>
+<div class="controls">
+  <div class="field">
+    <label>Region</label>
+    <select id="region">
+      <option value="NA">North America</option>
+      <option value="UK">UK</option>
+      <option value="DE" selected>Germany</option>
+      <option value="NL">Netherlands</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>Gender</label>
+    <select id="gender">
+      <option value="F" selected>Women</option>
+      <option value="M">Men</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>Age Range</label>
+    <select id="age">
+      <option value="18-25">18 – 25</option>
+      <option value="25-35">25 – 35</option>
+      <option value="35-50" selected>35 – 50</option>
+      <option value="45-60">45 – 60</option>
+      <option value="65+">65+</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>Style</label>
+    <select id="style">
+      <option value="everyday" selected>Everyday</option>
+      <option value="elevated">Elevated</option>
+      <option value="smart">Smart</option>
+      <option value="social">Social</option>
+      <option value="offduty">Off-duty</option>
+      <option value="lounge">Lounge</option>
+      <option value="active">Active</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>Count</label>
+    <input type="number" id="count" value="20" min="1" max="200" />
+  </div>
+  <div class="field">
+    <label>&nbsp;</label>
+    <button class="btn btn-primary" onclick="generate()">Generate</button>
+  </div>
+</div>
+<div class="stats" id="stats" style="display:none">
+  <div class="stat"><div class="stat-val" id="s-total">0</div><div class="stat-label">outfits</div></div>
+  <div class="stat"><div class="stat-val" id="s-outer">0</div><div class="stat-label">with outer</div></div>
+  <div class="stat"><div class="stat-val" id="s-demo">—</div><div class="stat-label">demographic</div></div>
+  <div class="stat"><div class="stat-val" id="s-region">—</div><div class="stat-label">region</div></div>
+  <div class="stat"><div class="stat-val" id="s-style">—</div><div class="stat-label">style</div></div>
+</div>
+<div class="dl-row" id="dl-row" style="display:none">
+  <button class="btn" onclick="downloadTxt()">Download .txt (### separated)</button>
+  <button class="btn" onclick="copyAll()">Copy all prompts</button>
+</div>
+<div id="list" class="outfit-list"></div>
+
+<script>
+// ─── BASE TAXONOMY ────────────────────────────────────────────────────────────
+// Keyed by gender (F/M) → age range → slot
+const TAXONOMY = {
+  F: {
+    "18-25": {
+      top: [
+        "white cropped baby tee, fitted, short sleeve",
+        "oversized graphic tee, dropped shoulders, slightly cropped",
+        "ribbed cami top in sage green, thin straps",
+        "off-shoulder fitted top in dusty rose",
+        "shrunken crew-neck knit in butter yellow",
+        "tie-front blouse in white cotton, cropped",
+        "long-sleeve crop top in chocolate brown, fitted",
+        "halter neck top in black, minimal",
+        "boxy polo shirt in pastel blue, oversized",
+        "fitted turtleneck in taupe, cropped",
+        "lace-trim cami in ecru, relaxed",
+        "printed babydoll tee in washed lilac"
+      ],
+      bottom: [
+        "low-rise wide-leg jeans in light blue wash",
+        "micro mini skirt in black denim",
+        "baggy cargo trousers in khaki with side pockets",
+        "low-rise straight-leg jeans, raw hem",
+        "pleated mini skirt in cream satin",
+        "wide-leg tracksuit bottoms in grey marl",
+        "low-rise flare jeans in medium wash",
+        "black wide-leg linen trousers, casual",
+        "denim mini skirt in mid wash, frayed hem",
+        "high-waist ribbed leggings in slate blue",
+        "parachute-style cargo trousers in olive",
+        "wide-leg track pants in burgundy"
+      ],
+      outer: [
+        "cropped denim jacket in light wash",
+        "zip-up hoodie in washed grey, slightly oversized",
+        "shacket in brown flannel plaid",
+        "cropped puffer jacket in sage green",
+        "oversized cardigan in cream, chunky knit",
+        "fitted track jacket in black with white stripe",
+        "short blazer in black, slightly boxy",
+        "washed varsity-style zip-up in tan"
+      ],
+      shoes: [
+        "platform sneakers in white, chunky sole",
+        "chunky lug-sole ankle boots in black",
+        "strappy flat sandals in tan leather",
+        "classic ballet flats in black",
+        "white low-profile canvas sneakers",
+        "platform Mary Janes in black leather",
+        "square-toe mules in beige",
+        "retro-style trainers in white and grey"
+      ],
+      bag: [
+        "mini shoulder bag in black with chain strap",
+        "small crescent bag in tan leather",
+        "canvas tote with simple graphic print",
+        "mini backpack in beige",
+        "bucket bag in cognac faux leather",
+        "small crossbody in quilted black",
+        "woven mini bag in natural straw"
+      ],
+      accessory: [
+        "thin gold hoop earrings, medium size",
+        "layered thin gold necklaces, two or three",
+        "small butterfly hair clips in silver",
+        "black baseball cap, worn forward",
+        "knitted beanie in sage green",
+        "chunky silver ring stack",
+        "small star stud earrings in gold",
+        "black scrunchie on wrist"
+      ]
+    },
+    "25-35": {
+      top: [
+        "fitted ribbed crew-neck long-sleeve in washed white",
+        "oversized graphic tee, faded print, slightly cropped",
+        "sheer linen button-up, half-tucked, loose collar",
+        "fitted mock-neck top in chocolate brown",
+        "white fitted scoop-neck t-shirt",
+        "off-shoulder knit top in dusty rose",
+        "cropped zip-up hoodie in heather grey",
+        "sleeveless ribbed tank in sage green",
+        "relaxed linen cami, thin straps, ecru",
+        "vintage-style band tee, slightly oversized",
+        "fitted long-sleeve in navy, thin ribbed fabric",
+        "draped cowl-neck top in dusty mauve"
+      ],
+      bottom: [
+        "wide-leg mid-rise jeans in light stone wash",
+        "straight-leg dark indigo denim, ankle length",
+        "low-rise baggy cargo trousers in khaki",
+        "tailored wide-leg trousers in charcoal grey",
+        "mini skirt in brown faux leather",
+        "pleated midi skirt in cream satin",
+        "relaxed linen trousers in oatmeal",
+        "black stretch flare trousers",
+        "denim midi skirt, raw hem, medium wash",
+        "wide-leg corduroy trousers in burnt orange",
+        "high-waist straight-leg jeans in black"
+      ],
+      outer: [
+        "oversized blazer in off-white, slightly boxy",
+        "washed denim jacket, relaxed fit",
+        "long camel wool coat, straight cut",
+        "black leather biker jacket, minimal hardware",
+        "zip-up fleece in moss green",
+        "short trench coat in beige",
+        "cropped bomber jacket in sage nylon",
+        "chunky knit cardigan in rust orange"
+      ],
+      shoes: [
+        "white low-profile leather sneakers, minimal branding",
+        "black pointed-toe ankle boots, block heel",
+        "platform Birkenstock-style clogs in tan suede",
+        "strappy flat sandals in brown leather",
+        "chunky white trainers with coloured sole",
+        "black ballet flats, round toe",
+        "cream canvas slip-ons",
+        "knee-high black leather boots, flat"
+      ],
+      bag: [
+        "small structured tote in tan leather",
+        "black nylon crossbody, zip front pocket",
+        "slouchy hobo bag in camel leather",
+        "canvas tote with single screenprint",
+        "mini shoulder bag in off-white",
+        "woven raffia basket bag",
+        "small black leather shoulder bag, chain strap"
+      ],
+      accessory: [
+        "thin gold hoop earrings",
+        "stacked silver rings, two or three",
+        "simple black baseball cap",
+        "knitted beanie in charcoal",
+        "long pendant necklace, gold",
+        "small stud earrings, pearl",
+        "tortoiseshell sunglasses, oversized",
+        "cotton scrunchie on wrist"
+      ]
+    },
+    "35-50": {
+      top: [
+        "fitted turtleneck in off-white cotton",
+        "relaxed linen shirt in sky blue, collar open",
+        "block-colour round-neck knit in forest green",
+        "draped wrap top in dusty mauve",
+        "collarless button-up in pale yellow, boxy",
+        "long-sleeve fitted top in navy, thin fabric",
+        "loose cotton blouse in ecru, slight ruffle at collar",
+        "fine-knit v-neck in burgundy",
+        "silk blouse in champagne, draped front",
+        "classic striped breton top, navy and cream, three-quarter sleeve",
+        "relaxed button-up in soft olive linen",
+        "fitted mock-neck in slate grey"
+      ],
+      bottom: [
+        "relaxed wide-leg linen trousers in sand",
+        "straight-leg mid-wash jeans, clean finish",
+        "tailored slim trousers in olive",
+        "a-line midi skirt in dark plum wool",
+        "straight-cut black trousers, high waist",
+        "dark grey slim jeans, ankle crop",
+        "wide-leg corduroy trousers in tan",
+        "pleated front trousers in light grey",
+        "straight-leg dark navy chino, slightly worn at knee",
+        "relaxed pull-on trousers in camel jersey",
+        "below-knee a-line skirt in dark green wool",
+        "classic straight-leg jeans in dark indigo"
+      ],
+      outer: [
+        "structured blazer in camel, single button",
+        "long dark navy wool coat, straight cut",
+        "oversized knit cardigan in oatmeal, open front",
+        "belted trench coat in stone",
+        "soft leather jacket in cognac, minimal zip detail",
+        "quilted vest in olive, zip-front",
+        "long charcoal grey wool coat",
+        "waist-length puffer in muted sage"
+      ],
+      shoes: [
+        "clean white low-profile leather sneakers",
+        "tan leather loafers, penny detail",
+        "ankle boots in dark brown leather, low block heel",
+        "simple black leather mules, low heel",
+        "suede chelsea boots in tan",
+        "flat leather sandals in cognac",
+        "dark navy canvas sneakers",
+        "white leather trainers, slightly chunky sole"
+      ],
+      bag: [
+        "small structured tote in warm tan leather, top-handle",
+        "large unstructured leather tote in camel",
+        "simple canvas shopper, natural colour",
+        "black leather handbag, shoulder strap",
+        "woven leather tote in cognac",
+        "medium crossbody in warm brown leather",
+        "dark navy nylon backpack, minimal"
+      ],
+      accessory: [
+        "thin gold hoop earrings, medium size",
+        "simple gold stud earrings",
+        "delicate layered gold necklaces",
+        "silk scarf tied loosely at neck",
+        "tortoiseshell glasses frames",
+        "classic watch with leather strap",
+        "small pearl drop earrings",
+        "woven leather belt, thin"
+      ]
+    },
+    "45-60": {
+      top: [
+        "classic white button-up shirt, fitted, tucked",
+        "fine merino v-neck in slate blue",
+        "relaxed cowl-neck top in warm grey",
+        "striped breton top, navy and white, three-quarter sleeve",
+        "silk blouse in champagne, draped front",
+        "fitted crew-neck knit in deep teal",
+        "long-sleeve linen top in terracotta",
+        "slightly oversized cotton shirt in pale sage",
+        "cashmere-blend roll-neck in camel",
+        "fine-knit v-neck in burgundy",
+        "classic printed silk blouse in muted floral",
+        "fine-ribbed fitted top in warm cream"
+      ],
+      bottom: [
+        "straight-leg dark navy trousers, pressed crease",
+        "wide-leg linen trousers in warm white",
+        "classic straight-leg jeans in dark indigo",
+        "below-knee a-line skirt in dark green wool",
+        "tailored slim trousers in charcoal",
+        "midi pleated skirt in warm rust",
+        "wide-leg wool trousers in camel",
+        "straight-cut smart chinos in stone",
+        "knee-length pencil skirt in charcoal",
+        "dark plum wide-leg trousers"
+      ],
+      outer: [
+        "longline blazer in deep navy, two-button",
+        "belted wool coat in camel, knee length",
+        "classic trench coat in beige",
+        "structured blazer in herringbone grey",
+        "open-front duster cardigan in oatmeal",
+        "short bouclé jacket in cream",
+        "dark charcoal wool wrap coat",
+        "longline cardigan in dark navy"
+      ],
+      shoes: [
+        "tan leather loafers, classic penny",
+        "black leather block-heel ankle boots",
+        "low-heel leather court shoes in nude",
+        "white leather trainers, clean minimal",
+        "flat leather ballet flats in cognac",
+        "suede chelsea boots in dark brown",
+        "simple leather mules in camel",
+        "dark navy leather loafers"
+      ],
+      bag: [
+        "structured leather handbag in cognac, top handles",
+        "classic leather tote in dark navy",
+        "medium leather shoulder bag in warm tan",
+        "simple black leather satchel",
+        "woven leather bag in natural tan",
+        "dark brown leather shoulder bag, minimal detail",
+        "structured black handbag, gold clasp"
+      ],
+      accessory: [
+        "classic gold stud earrings",
+        "simple gold chain necklace",
+        "silk scarf in muted print, loosely knotted",
+        "structured leather belt in cognac",
+        "classic watch, silver or gold strap",
+        "drop earrings in gold, understated",
+        "pearl stud earrings",
+        "reading glasses in tortoiseshell"
+      ]
+    },
+    "65+": {
+      top: [
+        "classic white button-up shirt, well-pressed",
+        "fine merino crew-neck in pale lavender",
+        "printed silk blouse in subtle floral, long sleeve",
+        "soft cotton polo neck in winter white",
+        "linen blouse in soft peach, relaxed fit",
+        "textured knit top in warm oatmeal",
+        "classic striped shirt in navy and white",
+        "fine wool v-neck in rose taupe",
+        "ponte fabric top in warm grey, slight drape",
+        "classic crew-neck knit in dusty teal"
+      ],
+      bottom: [
+        "classic straight-leg trousers in charcoal, pressed",
+        "mid-length a-line skirt in navy",
+        "pull-on elastic-waist trousers in warm beige",
+        "straight-leg chinos in stone",
+        "below-knee pleated skirt in dusty mauve",
+        "wide-leg linen trousers in cream",
+        "classic straight-leg jeans in dark navy",
+        "smart pull-on trousers in charcoal jersey"
+      ],
+      outer: [
+        "classic longline blazer in soft camel",
+        "wool coat in dusty rose, knee length",
+        "quilted jacket in navy, zip-front",
+        "classic trench coat in beige",
+        "lightweight zip-up jacket in light grey",
+        "bouclé jacket in ivory",
+        "longline knit cardigan in warm oatmeal, belted"
+      ],
+      shoes: [
+        "classic leather loafers in cognac",
+        "low block-heel leather court shoe in nude",
+        "comfortable white leather lace-ups, cushioned sole",
+        "leather ballet flats in cognac",
+        "soft leather ankle boot, low heel, in dark tan",
+        "classic leather mules in camel",
+        "supportive leather sandals in tan, minimal strap"
+      ],
+      bag: [
+        "structured leather handbag in warm tan, top handle",
+        "classic leather shoulder bag in navy",
+        "quilted leather bag in black, gold chain",
+        "simple leather tote in cognac",
+        "structured crossbody in dark brown leather"
+      ],
+      accessory: [
+        "pearl stud earrings, classic",
+        "delicate gold chain necklace",
+        "silk scarf in muted rose print",
+        "classic wristwatch with leather strap",
+        "reading glasses in soft tortoiseshell",
+        "brooch on lapel, enamel or gold",
+        "thin gold bangle bracelet"
+      ]
+    }
+  },
+
+  M: {
+    "18-25": {
+      top: [
+        "oversized graphic tee in washed black, crew neck",
+        "white ribbed tank top, fitted",
+        "boxy crew-neck sweatshirt in grey marl",
+        "long-sleeve printed tee in navy, relaxed",
+        "loose zip-up hoodie in washed olive",
+        "fitted polo shirt in off-white",
+        "oversized striped rugby shirt in navy and white",
+        "washed crew-neck tee in faded brown",
+        "sleeveless jersey tee in black",
+        "printed long-sleeve in sage green, boxy fit",
+        "oversized tee in washed denim blue",
+        "half-zip sweatshirt in chocolate brown"
+      ],
+      bottom: [
+        "relaxed-fit cargo trousers in khaki, multiple pockets",
+        "wide-leg jeans in light blue wash",
+        "black slim-fit joggers, elasticated hem",
+        "straight-leg jeans in grey indigo wash",
+        "relaxed-fit sweatpants in charcoal marl",
+        "wide-leg chinos in sand",
+        "dark navy track pants, white side stripe",
+        "vintage-wash baggy jeans in medium blue",
+        "loose denim jorts in light wash, knee-length",
+        "relaxed-fit cord trousers in rust"
+      ],
+      outer: [
+        "oversized puffer jacket in black, boxy",
+        "zip-up track jacket in navy with white stripes",
+        "washed denim jacket in dark indigo",
+        "fleece zip-up in brown",
+        "coach jacket in dark green nylon",
+        "relaxed cardigan in beige, open front",
+        "oversized varsity jacket in black and off-white",
+        "cropped puffer in olive green"
+      ],
+      shoes: [
+        "chunky retro sneakers in white and grey",
+        "low-top canvas sneakers in black",
+        "skate shoes in brown suede",
+        "high-top sneakers in off-white",
+        "slides in black rubber, minimalist",
+        "trail runners in olive and grey",
+        "clean low-profile white sneakers",
+        "wide-fit sneakers in cream with tan sole"
+      ],
+      bag: [
+        "minimal black backpack, matte",
+        "canvas tote in natural with simple print",
+        "small crossbody bag in black nylon",
+        "drawstring gym bag in olive"
+      ],
+      accessory: [
+        "black baseball cap, worn forward",
+        "beanie in charcoal grey, slouchy",
+        "simple silver chain necklace",
+        "sport watch in black rubber strap",
+        "thin gold chain bracelet",
+        "small hoop earring, single gold",
+        "bucket hat in olive canvas"
+      ]
+    },
+    "25-35": {
+      top: [
+        "fitted crew-neck tee in white cotton, minimal",
+        "Oxford shirt in light blue, slightly relaxed fit",
+        "linen button-up in ecru, collar open",
+        "fine-knit polo shirt in navy",
+        "fitted long-sleeve in oatmeal, ribbed",
+        "half-zip pullover in forest green",
+        "merino wool crew-neck in slate grey",
+        "oversized washed tee in sage",
+        "lightweight knit polo in tan",
+        "classic white button-up, slightly oversized",
+        "waffle-knit long-sleeve in off-white",
+        "printed short-sleeve in faded terracotta"
+      ],
+      bottom: [
+        "straight-leg chinos in olive, ankle crop",
+        "dark wash slim-fit jeans, clean",
+        "relaxed-fit dark jeans, straight leg",
+        "tailored trousers in light grey",
+        "linen wide-leg trousers in sand",
+        "classic five-pocket trousers in charcoal",
+        "cargo trousers in stone, tapered fit",
+        "straight-leg jeans in mid-blue wash",
+        "relaxed chinos in tan",
+        "cropped wide-leg jeans in black"
+      ],
+      outer: [
+        "bomber jacket in olive nylon, minimal hardware",
+        "structured single-button blazer in navy",
+        "washed denim jacket in dark indigo",
+        "coach jacket in stone",
+        "harrington jacket in tan",
+        "quilted overshirt in dark green",
+        "zip-up cardigan in oatmeal",
+        "field jacket in olive, four pockets"
+      ],
+      shoes: [
+        "clean white leather low-profile sneakers",
+        "tan suede desert boots, crepe sole",
+        "black Chelsea boots, minimal",
+        "leather loafers in dark brown, penny detail",
+        "low-top leather sneakers in off-white",
+        "dark navy canvas sneakers",
+        "white leather trainer, slightly chunky",
+        "clean leather derbies in cognac"
+      ],
+      bag: [
+        "slim canvas tote in olive",
+        "leather messenger bag in dark brown",
+        "minimal black backpack",
+        "canvas backpack in navy"
+      ],
+      accessory: [
+        "simple leather-strap watch in brown",
+        "small hoop earring, single gold",
+        "dark navy baseball cap",
+        "minimal chain necklace in silver",
+        "knit beanie in charcoal",
+        "woven bracelet in earth tones"
+      ]
+    },
+    "35-50": {
+      top: [
+        "Oxford shirt in white, collar slightly open",
+        "merino crew-neck knit in navy",
+        "linen button-up in light grey, relaxed",
+        "fitted polo shirt in dark green",
+        "fine-knit turtleneck in charcoal",
+        "classic button-up in pale blue, tucked",
+        "ribbed cotton crew-neck in oatmeal",
+        "half-zip merino pullover in slate",
+        "linen shirt in sage, collar open",
+        "fitted mock-neck in off-white",
+        "textured knit polo in dark rust",
+        "classic crew-neck tee in dark navy, quality cotton"
+      ],
+      bottom: [
+        "tailored chinos in stone, slim cut",
+        "dark indigo jeans, straight cut, clean",
+        "smart trousers in charcoal grey",
+        "relaxed-fit linen trousers in warm white",
+        "straight-leg dark navy trousers, pressed",
+        "slim-fit jeans in dark wash, ankle crop",
+        "five-pocket corduroy trousers in brown",
+        "classic chinos in olive"
+      ],
+      outer: [
+        "structured blazer in charcoal, two-button",
+        "leather jacket in dark cognac, minimal zips",
+        "long wool coat in dark navy",
+        "waxed cotton field jacket in olive",
+        "quilted jacket in dark green",
+        "longline blazer in herringbone grey",
+        "zip-up merino cardigan in slate blue"
+      ],
+      shoes: [
+        "tan leather loafers, minimal detail",
+        "leather Derby shoes in dark brown",
+        "clean white leather sneakers",
+        "Chelsea boots in dark cognac",
+        "suede monk-strap in tan",
+        "minimal leather trainers in off-white",
+        "dark brown leather lace-up boots"
+      ],
+      bag: [
+        "leather tote bag in dark brown, simple handles",
+        "slim leather briefcase in cognac",
+        "minimal canvas backpack in navy",
+        "leather messenger bag in chocolate brown"
+      ],
+      accessory: [
+        "classic leather strap watch in brown",
+        "simple gold or silver wedding band",
+        "minimal metal-frame glasses",
+        "leather belt in cognac",
+        "silver wristwatch, simple dial"
+      ]
+    },
+    "45-60": {
+      top: [
+        "classic button-up in pale blue, well-pressed",
+        "fine merino polo in navy",
+        "fitted v-neck knit in camel",
+        "linen shirt in off-white, collar open",
+        "classic crew-neck in charcoal",
+        "striped button-up in navy and white",
+        "fine-knit roll-neck in dark green",
+        "cotton Oxford in light grey, tucked",
+        "quality tee in navy, structured fabric",
+        "lightweight knit polo in oatmeal"
+      ],
+      bottom: [
+        "classic tailored trousers in charcoal",
+        "straight-leg dark indigo jeans, pressed",
+        "smart chinos in stone, classic cut",
+        "wide-leg linen trousers in cream",
+        "corduroy trousers in brown",
+        "classic trousers in olive, five-pocket",
+        "dark navy straight-cut jeans"
+      ],
+      outer: [
+        "classic blazer in navy, two-button",
+        "long wool overcoat in camel",
+        "leather jacket in dark cognac",
+        "quilted Barbour-style jacket in olive",
+        "longline cardigan in charcoal, open front",
+        "waterproof field jacket in dark green",
+        "herringbone tweed blazer in brown"
+      ],
+      shoes: [
+        "tan leather loafers, classic",
+        "Derby shoes in dark brown leather",
+        "clean leather trainers in white",
+        "Chelsea boots in dark navy suede",
+        "leather boat shoes in tan",
+        "dark brown leather brogues"
+      ],
+      bag: [
+        "classic leather briefcase in tan",
+        "leather tote in dark brown",
+        "minimal canvas bag in navy"
+      ],
+      accessory: [
+        "classic watch with metal bracelet",
+        "leather belt in cognac",
+        "simple gold or silver signet ring",
+        "reading glasses in classic frames",
+        "flat cap in herringbone tweed"
+      ]
+    },
+    "65+": {
+      top: [
+        "classic button-up in pale blue, neatly pressed",
+        "fine merino v-neck in warm grey",
+        "polo shirt in navy, long sleeve",
+        "linen shirt in cream, relaxed",
+        "classic crew-neck knit in oatmeal",
+        "cotton button-up in white, classic fit",
+        "fine-knit zip-neck in slate blue",
+        "soft flannel shirt in muted plaid",
+        "quality polo in soft sage green",
+        "classic v-neck in dark burgundy"
+      ],
+      bottom: [
+        "classic straight-leg trousers in charcoal, pressed",
+        "straight-leg chinos in stone",
+        "classic fit jeans in dark navy",
+        "corduroy trousers in warm brown",
+        "pull-on elastic-waist trousers in charcoal jersey",
+        "classic pleated trousers in beige"
+      ],
+      outer: [
+        "classic wool blazer in dark navy",
+        "long camel overcoat, classic cut",
+        "quilted vest in navy, zip-front",
+        "lightweight zip-up jacket in grey",
+        "longline cardigan in oatmeal",
+        "waterproof windbreaker in olive"
+      ],
+      shoes: [
+        "classic leather brogues in dark brown",
+        "leather loafers in tan",
+        "supportive white leather sneakers, wider fit",
+        "leather lace-up boots in dark brown",
+        "classic Derby shoes in black leather"
+      ],
+      bag: [
+        "classic leather briefcase in cognac",
+        "simple canvas tote in navy",
+        "leather shoulder bag in dark brown"
+      ],
+      accessory: [
+        "classic wristwatch, leather strap",
+        "leather belt in dark brown",
+        "flat cap in herringbone tweed",
+        "reading glasses in tortoiseshell",
+        "simple gold signet ring"
+      ]
+    }
+  }
+};
+
+// ─── REGIONAL ADDITIONS ───────────────────────────────────────────────────────
+// Pooled with base items — adds regional flavour without dominating
+const REGIONAL = {
+  NA: {
+    F: {
+      top: [
+        "oversized college sweatshirt in grey marl",
+        "plaid flannel shirt, worn open over tee",
+        "ribbed athletic tank in dusty blue"
+      ],
+      bottom: [
+        "high-waist athletic leggings in black",
+        "relaxed boyfriend jeans in light wash",
+        "denim cut-off shorts in medium wash"
+      ],
+      outer: [
+        "oversized puffer jacket in olive",
+        "zip-up hoodie in burgundy",
+        "classic trucker jacket in dark denim"
+      ],
+      shoes: [
+        "classic white retro trainers, cushioned sole",
+        "Boston-style clogs in mocha suede",
+        "high-top canvas sneakers in white"
+      ],
+      bag: [
+        "canvas tote with collegiate print",
+        "simple nylon backpack in black"
+      ],
+      accessory: [
+        "baseball cap in navy",
+        "scrunchie in tie-dye cotton",
+        "simple stud earrings in gold"
+      ]
+    },
+    M: {
+      top: [
+        "college sweatshirt in grey marl",
+        "plaid flannel shirt, open over white tee",
+        "relaxed baseball tee in grey and white"
+      ],
+      bottom: [
+        "relaxed carpenter jeans in light wash",
+        "athletic shorts in navy, knee-length",
+        "chino shorts in khaki"
+      ],
+      outer: [
+        "classic varsity jacket in navy and white",
+        "zip-up hoodie in forest green",
+        "down puffer in black, boxy fit"
+      ],
+      shoes: [
+        "classic white retro trainers, cushioned sole",
+        "white canvas low-tops",
+        "grey running shoes, technical look"
+      ],
+      bag: [
+        "large canvas backpack in grey",
+        "simple nylon tote in black"
+      ],
+      accessory: [
+        "baseball cap in team colour",
+        "sport watch in black rubber",
+        "simple beaded bracelet in earthy tones"
+      ]
+    }
+  },
+  UK: {
+    F: {
+      top: [
+        "fitted breton stripe top in navy and white",
+        "classic Oxford shirt in pale pink",
+        "fine-knit roll-neck in camel"
+      ],
+      bottom: [
+        "tailored wide-leg trousers in moss green",
+        "check mini skirt in brown tartan"
+      ],
+      outer: [
+        "classic mac coat in khaki, belted",
+        "Barbour-style waxed jacket in navy",
+        "heritage check blazer in camel and brown"
+      ],
+      shoes: [
+        "classic leather brogues in tan",
+        "New Balance 550-style trainers in grey and cream",
+        "Adidas Samba-style sneakers in white and green"
+      ],
+      bag: [
+        "wicker basket bag with leather trim",
+        "classic leather holdall in tan"
+      ],
+      accessory: [
+        "silver hoops, small and simple",
+        "knit beret in camel",
+        "pearl earrings, small classic"
+      ]
+    },
+    M: {
+      top: [
+        "heritage checked flannel shirt in rust",
+        "Breton stripe knit in navy and cream"
+      ],
+      bottom: [
+        "slim-fit smart trousers in dark olive",
+        "heritage-wash straight jeans in dark indigo"
+      ],
+      outer: [
+        "Barbour-style waxed jacket in olive",
+        "classic mac in khaki, single-breasted",
+        "tweed blazer in herringbone brown"
+      ],
+      shoes: [
+        "classic leather brogues in tan",
+        "Adidas Samba-style trainers in white and black",
+        "leather Chelsea boots in dark cognac"
+      ],
+      bag: [
+        "leather holdall in dark tan",
+        "waxed canvas backpack in olive"
+      ],
+      accessory: [
+        "flat cap in herringbone",
+        "classic watch with nato strap",
+        "signet ring in gold"
+      ]
+    }
+  },
+  DE: {
+    F: {
+      top: [
+        "collarless shirt in white linen, boxy cut",
+        "loose-weave linen top in sand, minimal"
+      ],
+      bottom: [
+        "functional cargo trousers in dark olive",
+        "pleated trouser in warm beige, relaxed"
+      ],
+      outer: [
+        "waterproof shell jacket in dark teal",
+        "quilted jacket in dark olive, zip-front"
+      ],
+      shoes: [
+        "Birkenstock-style sandals in tan",
+        "clean minimal leather loafers in cognac"
+      ],
+      bag: [
+        "minimal canvas tote in natural",
+        "functional nylon crossbody in black"
+      ],
+      accessory: [
+        "simple gold stud earrings",
+        "thin gold chain, minimal"
+      ]
+    },
+    M: {
+      top: [
+        "minimal crew-neck tee in off-white, structured cotton",
+        "clean linen shirt in light grey"
+      ],
+      bottom: [
+        "functional cargo trousers in khaki",
+        "relaxed straight jeans in dark blue"
+      ],
+      outer: [
+        "waterproof shell jacket in olive",
+        "technical fleece in dark grey"
+      ],
+      shoes: [
+        "minimal white leather sneakers",
+        "functional leather lace-ups in brown"
+      ],
+      bag: [
+        "minimal backpack in dark navy",
+        "functional messenger in grey nylon"
+      ],
+      accessory: [
+        "simple leather watch",
+        "thin leather belt in cognac"
+      ]
+    }
+  },
+  NL: {
+    F: {
+      top: [
+        "fitted fine-stripe shirt in blue and white",
+        "relaxed linen blouse in light terracotta"
+      ],
+      bottom: [
+        "wide-leg linen trousers in off-white",
+        "functional trousers in dark olive, tapered"
+      ],
+      outer: [
+        "waterproof rain jacket in cobalt blue",
+        "minimal puffer vest in light grey",
+        "relaxed trench in sand, unbelted"
+      ],
+      shoes: [
+        "clean leather sneakers in white",
+        "flat leather chelsea boots in black"
+      ],
+      bag: [
+        "minimalist leather backpack in tan",
+        "pannier-style bag in black waxed canvas"
+      ],
+      accessory: [
+        "simple silver stud earrings",
+        "thin silver ring, minimal"
+      ]
+    },
+    M: {
+      top: [
+        "minimal linen shirt in pale terracotta",
+        "fine-stripe Oxford in light blue"
+      ],
+      bottom: [
+        "tapered chinos in warm grey",
+        "functional wide-leg trousers in olive"
+      ],
+      outer: [
+        "waterproof cycling jacket in bright orange",
+        "minimal puffer in light grey",
+        "trench coat in sand, relaxed"
+      ],
+      shoes: [
+        "clean white leather sneakers",
+        "minimal leather Chelsea boots in black"
+      ],
+      bag: [
+        "minimalist black leather backpack",
+        "waxed canvas pannier bag"
+      ],
+      accessory: [
+        "simple silver watch",
+        "thin wire-frame glasses"
+      ]
+    }
+  }
+};
+
+// ─── STYLE TAXONOMY ──────────────────────────────────────────────────────────
+// Dominant styles (active, lounge) replace the base pool.
+// Flavour styles (elevated, smart, social, offduty) are double-weighted into it.
+// Everyday uses base + regional only (no style layer).
+const STYLE = {
+  elevated: {
+    F: {
+      top: [
+        "silk blouse in ivory, draped front, long sleeve",
+        "cashmere turtleneck in camel, fitted",
+        "structured silk-blend top in champagne, subtle sheen",
+        "fine merino v-neck in dusty rose, thin knit",
+        "satin cami in pale gold, minimal",
+        "crisp white button-up in poplin, tailored fit",
+        "fitted cashmere crew-neck in charcoal",
+        "silk blouse in deep burgundy, relaxed collar"
+      ],
+      bottom: [
+        "tailored wide-leg trousers in charcoal, pressed crease",
+        "midi skirt in heavy satin, ivory",
+        "high-waist slim trousers in camel wool",
+        "pleated wide-leg trousers in champagne",
+        "straight-cut trousers in dark navy, fine wool",
+        "leather-effect midi skirt in cognac, A-line"
+      ],
+      outer: [
+        "longline blazer in camel, single button, structured",
+        "tailored wool coat in dark navy, knee length",
+        "structured blazer in ivory, oversized fit",
+        "belted cashmere coat in camel",
+        "longline coat in charcoal with clean lapel"
+      ],
+      shoes: [
+        "pointed-toe leather mules in nude, low heel",
+        "leather loafers in cognac, polished",
+        "heeled ankle boots in black leather, clean toe",
+        "slingback court shoe in nude leather",
+        "square-toe leather sandals, mid heel, in tan"
+      ],
+      bag: [
+        "structured leather handbag in tan, top handle",
+        "small leather shoulder bag in black, gold hardware",
+        "classic baguette bag in ivory leather",
+        "structured tote in cognac leather, minimal logo"
+      ],
+      accessory: [
+        "delicate gold chain necklace, layered",
+        "small pearl drop earrings",
+        "thin gold bangle, single",
+        "silk scarf in muted print, loosely tied",
+        "classic gold stud earrings"
+      ]
+    },
+    M: {
+      top: [
+        "crisp white Oxford shirt, slim fit, tucked",
+        "fine merino turtleneck in charcoal",
+        "cashmere polo in camel, long sleeve",
+        "silk-blend button-up in pale blue, structured",
+        "fitted merino crew-neck in navy"
+      ],
+      bottom: [
+        "tailored slim trousers in charcoal wool, pressed",
+        "smart trousers in dark navy, straight cut",
+        "tailored chinos in stone, quality fabric",
+        "wide-leg trousers in camel, structured"
+      ],
+      outer: [
+        "structured blazer in charcoal, two-button, fitted",
+        "longline wool coat in dark navy",
+        "tailored overcoat in camel",
+        "structured blazer in herringbone grey"
+      ],
+      shoes: [
+        "leather Oxford shoes in dark cognac, polished",
+        "suede loafers in tan, premium finish",
+        "leather Derby in dark brown, minimal brogue",
+        "leather Chelsea boots in cognac, refined"
+      ],
+      bag: [
+        "slim leather briefcase in dark cognac",
+        "structured leather tote in tan",
+        "leather portfolio in dark brown"
+      ],
+      accessory: [
+        "dress watch in silver with leather strap",
+        "silk pocket square in muted pattern",
+        "simple gold cufflinks",
+        "leather belt in cognac, thin"
+      ]
+    }
+  },
+
+  smart: {
+    F: {
+      top: [
+        "structured blouse in white, fitted, tucked",
+        "silk blouse in pale blue, collar open",
+        "fitted turtleneck in black, thin fabric",
+        "collarless blazer worn as top, camel",
+        "fitted button-up in light grey, tailored"
+      ],
+      bottom: [
+        "tailored slim trousers in charcoal, pressed",
+        "pencil skirt in dark navy, knee length",
+        "straight-cut trousers in black, high waist",
+        "wide-leg tailored trousers in stone",
+        "a-line midi skirt in dark green"
+      ],
+      outer: [
+        "structured blazer in black, single button",
+        "blazer in navy, fitted, two-button",
+        "longline blazer in grey, minimal",
+        "structured blazer in camel"
+      ],
+      shoes: [
+        "pointed-toe ankle boots in black, low block heel",
+        "leather loafers in black, classic",
+        "court shoes in nude, low heel",
+        "clean leather Derby in dark tan"
+      ],
+      bag: [
+        "structured leather tote in black, top handle",
+        "slim work bag in cognac leather",
+        "medium leather satchel in dark navy"
+      ],
+      accessory: [
+        "simple gold stud earrings",
+        "delicate gold chain, minimal",
+        "classic watch with leather strap",
+        "thin leather belt in black"
+      ]
+    },
+    M: {
+      top: [
+        "Oxford shirt in white, pressed, tucked",
+        "button-up in pale blue, structured collar",
+        "fine merino polo in navy, long sleeve",
+        "fitted turtleneck in charcoal",
+        "Oxford shirt in light grey, slim fit"
+      ],
+      bottom: [
+        "slim chinos in stone, pressed",
+        "tailored trousers in charcoal, straight cut",
+        "smart trousers in dark navy",
+        "slim-fit jeans in dark indigo, clean"
+      ],
+      outer: [
+        "structured blazer in navy, two-button",
+        "blazer in charcoal grey, fitted",
+        "smart blazer in camel",
+        "longline blazer in dark green"
+      ],
+      shoes: [
+        "leather Derby shoes in dark brown",
+        "leather loafers in tan",
+        "Chelsea boots in dark cognac, minimal",
+        "leather Oxfords in black"
+      ],
+      bag: [
+        "slim leather briefcase in tan",
+        "structured canvas backpack in navy",
+        "leather messenger bag in dark brown"
+      ],
+      accessory: [
+        "classic leather strap watch",
+        "simple leather belt in cognac",
+        "minimal silver tie clip"
+      ]
+    }
+  },
+
+  social: {
+    F: {
+      top: [
+        "satin slip top in black, thin straps",
+        "cut-out going-out top in burgundy, minimal",
+        "fitted bodysuit in deep teal",
+        "satin cami in champagne, relaxed",
+        "backless halter top in black",
+        "sheer mesh top in dusty rose over cami",
+        "fitted ruched top in burnt sienna"
+      ],
+      bottom: [
+        "satin wide-leg trousers in black",
+        "mini skirt in black sequin, slim",
+        "midi slip skirt in champagne satin",
+        "tailored wide-leg trousers in dark burgundy",
+        "leather-effect mini skirt in black"
+      ],
+      outer: [
+        "faux fur coat in cream, short",
+        "longline blazer in black, worn open",
+        "wrap coat in dark burgundy, belted",
+        "oversized leather jacket in black"
+      ],
+      shoes: [
+        "strappy heeled sandals in black leather",
+        "pointed-toe heeled mules in nude",
+        "platform ankle boots in black",
+        "heeled slingback in metallic gold"
+      ],
+      bag: [
+        "mini clutch in black satin",
+        "small shoulder bag in gold leather",
+        "mini bag in black leather, chain strap",
+        "small evening bag in champagne satin"
+      ],
+      accessory: [
+        "statement drop earrings in gold",
+        "layered gold necklaces, multiple",
+        "small crystal stud earrings",
+        "thin gold ring stack, three fingers"
+      ]
+    },
+    M: {
+      top: [
+        "fitted black shirt, minimal, open collar",
+        "fitted satin-finish shirt in dark navy",
+        "structured crew-neck in black, fine fabric",
+        "white fitted shirt, slightly open collar"
+      ],
+      bottom: [
+        "slim tailored trousers in black",
+        "dark navy smart trousers, fitted",
+        "straight-cut trousers in charcoal, pressed",
+        "slim dark jeans, clean, well-fitted"
+      ],
+      outer: [
+        "structured blazer in black, slim fit",
+        "longline coat in dark navy",
+        "blazer in dark burgundy, fitted"
+      ],
+      shoes: [
+        "leather Chelsea boots in black, polished",
+        "leather Oxford in black, slim toe",
+        "leather Derby in dark cognac, clean"
+      ],
+      bag: [
+        "minimal leather clutch in black",
+        "small leather crossbody in black"
+      ],
+      accessory: [
+        "dress watch in silver",
+        "simple gold chain necklace",
+        "single small hoop earring in gold"
+      ]
+    }
+  },
+
+  offduty: {
+    F: {
+      top: [
+        "oversized crew-neck sweatshirt in grey marl",
+        "basic white tee, slightly oversized",
+        "zip-up hoodie in washed navy",
+        "loose crew-neck tee in faded black",
+        "oversized long-sleeve in oatmeal",
+        "simple ribbed tank in white",
+        "boxy tee in washed sage"
+      ],
+      bottom: [
+        "wide-leg sweatpants in charcoal marl",
+        "relaxed straight jeans in light wash",
+        "loose joggers in oatmeal",
+        "baggy jeans in medium blue wash",
+        "tracksuit bottoms in navy, simple"
+      ],
+      outer: [
+        "oversized zip-up hoodie in grey",
+        "worn-in denim jacket, light wash",
+        "large crewneck sweatshirt worn open",
+        "fleece zip-up in brown"
+      ],
+      shoes: [
+        "worn-in canvas sneakers in white",
+        "slides in black rubber",
+        "simple flat sandals in tan",
+        "classic low-top canvas in black"
+      ],
+      bag: [
+        "simple canvas tote in natural",
+        "nylon drawstring bag in black",
+        "basic canvas crossbody in grey"
+      ],
+      accessory: [
+        "simple hair clip in black",
+        "basic hoop earrings in silver",
+        "plain scrunchie in neutral",
+        "no-fuss stud earrings"
+      ]
+    },
+    M: {
+      top: [
+        "oversized crew-neck sweatshirt in grey marl",
+        "basic white tee, relaxed fit",
+        "zip-up hoodie in washed black",
+        "simple crew-neck tee in navy",
+        "oversized long-sleeve in faded olive",
+        "boxy tee in washed brown"
+      ],
+      bottom: [
+        "relaxed joggers in charcoal marl",
+        "baggy jeans in light wash",
+        "simple sweatpants in navy",
+        "straight jeans in medium wash, worn-in"
+      ],
+      outer: [
+        "oversized zip-up hoodie in grey",
+        "washed denim jacket, relaxed",
+        "fleece zip-up in brown"
+      ],
+      shoes: [
+        "worn-in canvas sneakers in white",
+        "rubber slides in black",
+        "simple flat trainers in grey"
+      ],
+      bag: [
+        "simple canvas tote in natural",
+        "drawstring bag in black nylon"
+      ],
+      accessory: [
+        "basic baseball cap in black",
+        "simple beanie in grey",
+        "no-fuss sport watch"
+      ]
+    }
+  },
+
+  lounge: {
+    F: {
+      top: [
+        "oversized soft tee in dusty lavender",
+        "waffle-knit long-sleeve in oatmeal",
+        "ribbed tank in ecru, thin straps",
+        "cozy oversized sweatshirt in sage green",
+        "soft cotton long-sleeve in light grey",
+        "loose thermal top in cream",
+        "satin cami in blush, relaxed"
+      ],
+      bottom: [
+        "wide-leg jersey loungewear trousers in ecru",
+        "soft ribbed knit shorts in sage",
+        "elasticated waist joggers in dusty pink",
+        "loose wide-leg pyjama-style trousers in white",
+        "oversized sweatpants in oatmeal marl",
+        "satin pyjama-style shorts in champagne"
+      ],
+      outer: [
+        "oversized dressing-gown cardigan in oatmeal, belted",
+        "fluffy zip-up in cream",
+        "long open-front knit cardigan in light grey",
+        "waffle-knit robe in ecru"
+      ],
+      shoes: [
+        "flat terry-cloth slippers in oatmeal",
+        "soft leather indoor slides in tan",
+        "knit socks folded at ankle, cream",
+        "minimal flat slip-on in beige"
+      ],
+      bag: [],
+      accessory: [
+        "hair clip in simple tortoiseshell",
+        "scrunchie in soft cotton, neutral",
+        "simple stud earrings in gold"
+      ]
+    },
+    M: {
+      top: [
+        "oversized soft cotton tee in light grey",
+        "waffle-knit long-sleeve in oatmeal",
+        "loose crew-neck sweatshirt in dusty blue",
+        "ribbed tank in white",
+        "soft cotton long-sleeve in ecru"
+      ],
+      bottom: [
+        "wide-leg joggers in oatmeal marl",
+        "soft cotton lounge shorts in light grey",
+        "elasticated pyjama trousers in navy stripe",
+        "relaxed sweatpants in charcoal"
+      ],
+      outer: [
+        "oversized zip-up hoodie in grey, very relaxed",
+        "long open-front cardigan in oatmeal",
+        "waffle-knit robe in ecru"
+      ],
+      shoes: [
+        "flat slippers in oatmeal terry",
+        "minimal slides in black rubber",
+        "knit crew socks in grey"
+      ],
+      bag: [],
+      accessory: [
+        "simple watch in black rubber strap"
+      ]
+    }
+  },
+
+  active: {
+    F: {
+      top: [
+        "sports bra in black, medium support, minimal",
+        "fitted athletic tank in sage green, racerback",
+        "compression long-sleeve in dark navy",
+        "sports bra in dusty rose, light support",
+        "fitted crop top in white, athletic",
+        "sports bra with mesh panel in charcoal",
+        "lightweight athletic tee in oatmeal, relaxed"
+      ],
+      bottom: [
+        "high-waist full-length leggings in black",
+        "cycling shorts in dark grey, mid-length",
+        "high-waist leggings in sage green",
+        "athletic shorts in black, mid-thigh",
+        "wide-leg track pants in navy, side stripe",
+        "compression tights in charcoal"
+      ],
+      outer: [
+        "zip-up athletic jacket in black, minimal",
+        "lightweight running gilet in grey",
+        "cropped hoodie in dusty pink",
+        "zip-up track top in navy"
+      ],
+      shoes: [
+        "running shoes in white and grey, cushioned",
+        "cross-training sneakers in black",
+        "lightweight trail runners in sage and grey",
+        "gym shoes in white, minimal"
+      ],
+      bag: [
+        "gym duffel in black nylon",
+        "drawstring bag in grey",
+        "small crossbody in black, sport clip"
+      ],
+      accessory: [
+        "hair tie in black, simple",
+        "sports watch in black rubber",
+        "sweat headband in white",
+        "small stud earrings in gold"
+      ]
+    },
+    M: {
+      top: [
+        "fitted athletic tee in black, crew neck",
+        "compression long-sleeve in navy",
+        "sleeveless training top in grey marl",
+        "lightweight running tee in white",
+        "fitted athletic polo in dark green",
+        "mesh training vest in black"
+      ],
+      bottom: [
+        "training shorts in black, knee-length",
+        "compression leggings in dark grey",
+        "joggers in charcoal, tapered, elasticated hem",
+        "track pants in navy, side stripe",
+        "running shorts in dark green, minimal"
+      ],
+      outer: [
+        "zip-up training jacket in black",
+        "lightweight running jacket in grey",
+        "athletic hoodie in navy, minimal",
+        "gilet in dark olive, lightweight"
+      ],
+      shoes: [
+        "running shoes in white and black, cushioned",
+        "cross-training sneakers in grey",
+        "gym shoes in white, minimal profile",
+        "trail runners in olive and grey"
+      ],
+      bag: [
+        "gym duffel in black nylon",
+        "drawstring bag in grey",
+        "minimal backpack in black, sport"
+      ],
+      accessory: [
+        "sport watch in black rubber strap",
+        "sweat headband in black",
+        "simple chain bracelet, thin"
+      ]
+    }
+  }
+};
+
+// ─── LOGIC ────────────────────────────────────────────────────────────────────
+function pick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function buildOutfit(gender, ageRange, region, style) {
+  const base = TAXONOMY[gender][ageRange];
+  const regional = REGIONAL[region][gender];
+  const styleData = STYLE[style] ? STYLE[style][gender] : null;
+
+  // dominant: lounge/active replace base entirely
+  // flavour: elevated/smart/social/offduty — style items double-weighted into base
+  // everyday: base + regional only
+  const isDominant = style === 'lounge' || style === 'active';
+
+  function pool(slot) {
+    const b = base[slot] || [];
+    const r = regional[slot] || [];
+    const s = styleData ? (styleData[slot] || []) : [];
+    if (isDominant) {
+      // style items dominate; sprinkle 2 regional items for texture
+      return [...s, ...s, ...r.slice(0, 2)];
+    }
+    if (s.length > 0) {
+      // flavour: style items appear at ~2× frequency
+      return [...b, ...s, ...s, ...r];
+    }
+    return [...b, ...r];
+  }
+
+  // lounge: outer always present (cardigan/robe); active: always has outer (jacket)
+  // dominant styles: always outer. Others: 65% chance
+  const hasOuter = isDominant ? true : Math.random() > 0.35;
+
+  const slots = ['top', 'bottom', 'shoes', 'accessory'];
+  const outfit = {};
+  slots.forEach(slot => {
+    const p = pool(slot);
+    if (p.length > 0) outfit[slot] = pick(p);
+  });
+
+  // bag: lounge has no bag
+  if (style !== 'lounge') {
+    const bagPool = pool('bag');
+    if (bagPool.length > 0) outfit.bag = pick(bagPool);
+  }
+
+  if (hasOuter) {
+    const outerPool = pool('outer');
+    if (outerPool.length > 0) outfit.outer = pick(outerPool);
+  }
+
+  return outfit;
+}
+
+const STYLE_LABELS = {
+  everyday: 'Everyday', elevated: 'Elevated', smart: 'Smart',
+  social: 'Social', offduty: 'Off-duty', lounge: 'Lounge', active: 'Active'
+};
+
+function toPrompt(outfit, gender, style) {
+  const label = gender === 'F' ? "Women's" : "Men's";
+  const styleLabel = STYLE_LABELS[style] || '';
+  const items = Object.values(outfit).join('. ');
+  return `Flat lay product photography on a plain white background. ${label} ${styleLabel.toLowerCase()} outfit, items neatly folded and arranged with even spacing, shot from directly above. Items: ${items}. Natural diffused light, no shadows, no model, no props, no background texture.`;
+}
+
+// ─── UI ───────────────────────────────────────────────────────────────────────
+const REGION_LABELS = { NA: 'N. America', UK: 'UK', DE: 'Germany', NL: 'Netherlands' };
+let outfits = [];
+
+function generate() {
+  const gender = document.getElementById('gender').value;
+  const ageRange = document.getElementById('age').value;
+  const region = document.getElementById('region').value;
+  const style = document.getElementById('style').value;
+  const count = Math.min(200, Math.max(1, parseInt(document.getElementById('count').value) || 20));
+
+  outfits = Array.from({ length: count }, (_, i) => {
+    const outfit = buildOutfit(gender, ageRange, region, style);
+    return { id: i + 1, gender, ageRange, region, style, outfit, prompt: toPrompt(outfit, gender, style) };
+  });
+
+  const withOuter = outfits.filter(o => o.outfit.outer).length;
+  const genderLabel = gender === 'F' ? 'Women' : 'Men';
+
+  document.getElementById('s-total').textContent = count;
+  document.getElementById('s-outer').textContent = withOuter;
+  document.getElementById('s-demo').textContent = genderLabel + ' ' + ageRange;
+  document.getElementById('s-region').textContent = REGION_LABELS[region];
+  document.getElementById('s-style').textContent = STYLE_LABELS[style];
+  document.getElementById('stats').style.display = 'flex';
+  document.getElementById('dl-row').style.display = 'flex';
+
+  renderList();
+}
+
+function renderList() {
+  const list = document.getElementById('list');
+  list.innerHTML = outfits.map(o => {
+    const preview = o.outfit.top + ' · ' + o.outfit.bottom;
+    const slots = Object.entries(o.outfit)
+      .map(([k, v]) => `<div class="slot-row"><span class="slot-name">${k}</span><span class="slot-val">${v}</span></div>`)
+      .join('');
+    return `<div class="outfit-card">
+      <div class="outfit-head" onclick="toggle(${o.id})">
+        <span class="outfit-num">#${String(o.id).padStart(2, '0')}</span>
+        <span class="outfit-preview">${preview}</span>
+        <span style="font-size:12px;color:#888" id="arr-${o.id}">▾</span>
+      </div>
+      <div class="outfit-body" id="body-${o.id}" style="display:none">
+        ${slots}
+        <div class="prompt-box">${o.prompt}</div>
+        <div class="copy-row">
+          <button class="btn btn-sm" onclick="copyOne(${o.id})">Copy prompt</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggle(id) {
+  const b = document.getElementById('body-' + id);
+  const a = document.getElementById('arr-' + id);
+  const open = b.style.display !== 'none';
+  b.style.display = open ? 'none' : 'block';
+  a.textContent = open ? '▾' : '▴';
+}
+
+function copyOne(id) {
+  const o = outfits.find(x => x.id === id);
+  navigator.clipboard.writeText(o.prompt);
+}
+
+function copyAll() {
+  navigator.clipboard.writeText(outfits.map(o => o.prompt).join('###'));
+}
+
+function downloadTxt() {
+  const g = document.getElementById('gender').value === 'F' ? 'Women' : 'Men';
+  const a = document.getElementById('age').value;
+  const r = document.getElementById('region').value;
+  const s = document.getElementById('style').value;
+  const content = outfits.map(o => o.prompt).join('###');
+  const blob = new Blob([content], { type: 'text/plain' });
+  const el = document.createElement('a');
+  el.href = URL.createObjectURL(blob);
+  el.download = `outfits_${r}_${g}_${a}_${s}.txt`;
+  el.click();
+}
+</script>
+</body>
+</html>

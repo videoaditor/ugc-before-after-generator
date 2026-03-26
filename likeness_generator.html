@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Likeness Generator</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #111; padding: 2rem; max-width: 920px; margin: 0 auto; }
+.header { margin-bottom: 1.5rem; }
+.header h1 { font-size: 18px; font-weight: 500; }
+.header p { font-size: 13px; color: #666; margin-top: 4px; }
+.controls { display: flex; gap: 12px; align-items: flex-end; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.05em; }
+select, input[type=number] { height: 36px; padding: 0 10px; border: 0.5px solid #ccc; border-radius: 8px; background: #fff; color: #111; font-size: 14px; font-family: inherit; min-width: 150px; }
+input[type=number] { min-width: 80px; }
+.btn { height: 36px; padding: 0 16px; border: 0.5px solid #ccc; border-radius: 8px; background: #fff; color: #111; font-size: 14px; font-family: inherit; cursor: pointer; white-space: nowrap; }
+.btn:hover { background: #f5f5f5; }
+.btn-primary { background: #111; color: #fff; border-color: #111; }
+.btn-primary:hover { opacity: 0.85; }
+.btn-sm { height: 28px; padding: 0 10px; font-size: 12px; }
+.stats { display: flex; gap: 12px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.stat { background: #f5f5f5; border-radius: 8px; padding: 12px 16px; flex: 1; min-width: 80px; }
+.stat-val { font-size: 18px; font-weight: 500; }
+.stat-label { font-size: 12px; color: #666; margin-top: 2px; }
+.lk-list { display: flex; flex-direction: column; gap: 8px; }
+.lk-card { background: #fff; border: 0.5px solid #e0e0e0; border-radius: 12px; overflow: hidden; }
+.lk-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; cursor: pointer; }
+.lk-head:hover { background: #f9f9f9; }
+.lk-num { font-size: 12px; color: #666; font-weight: 500; }
+.lk-preview { font-size: 13px; color: #111; flex: 1; margin: 0 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lk-body { border-top: 0.5px solid #e0e0e0; padding: 12px 14px; }
+.slot-row { display: flex; gap: 10px; padding: 5px 0; border-bottom: 0.5px solid #f0f0f0; }
+.slot-row:last-child { border-bottom: none; }
+.slot-name { font-size: 11px; font-weight: 500; color: #888; text-transform: uppercase; letter-spacing: 0.07em; min-width: 80px; padding-top: 1px; }
+.slot-val { font-size: 13px; color: #111; line-height: 1.5; }
+.prompt-box { margin-top: 10px; background: #f5f5f5; border-radius: 8px; padding: 10px 12px; font-size: 12px; color: #555; line-height: 1.7; font-family: 'SF Mono', 'Fira Code', monospace; }
+.copy-row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+.dl-row { display: flex; gap: 8px; margin-bottom: 1.5rem; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>Likeness generator</h1>
+  <p>Randomized character descriptors for UGC capture-log SUBJECT field</p>
+</div>
+<div class="controls">
+  <div class="field">
+    <label>Region</label>
+    <select id="region">
+      <option value="NA">North America</option>
+      <option value="UK">UK</option>
+      <option value="DE" selected>Germany</option>
+      <option value="NL">Netherlands</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>Gender</label>
+    <select id="gender">
+      <option value="F" selected>Women</option>
+      <option value="M">Men</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>Age Range</label>
+    <select id="age">
+      <option value="18-25">18 – 25</option>
+      <option value="25-35">25 – 35</option>
+      <option value="35-50" selected>35 – 50</option>
+      <option value="45-60">45 – 60</option>
+      <option value="65+">65+</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>Skin Tone</label>
+    <select id="tone">
+      <option value="fair">Fair (I–II)</option>
+      <option value="light" selected>Light (II–III)</option>
+      <option value="light-medium">Light-Medium (III)</option>
+      <option value="medium">Medium (IV)</option>
+      <option value="medium-deep">Medium-Deep (IV–V)</option>
+      <option value="deep">Deep (V–VI)</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>Count</label>
+    <input type="number" id="count" value="20" min="1" max="200" />
+  </div>
+  <div class="field">
+    <label>&nbsp;</label>
+    <button class="btn btn-primary" onclick="generate()">Generate</button>
+  </div>
+</div>
+<div class="stats" id="stats" style="display:none">
+  <div class="stat"><div class="stat-val" id="s-total">0</div><div class="stat-label">subjects</div></div>
+  <div class="stat"><div class="stat-val" id="s-demo">—</div><div class="stat-label">demographic</div></div>
+  <div class="stat"><div class="stat-val" id="s-region">—</div><div class="stat-label">region</div></div>
+  <div class="stat"><div class="stat-val" id="s-tone">—</div><div class="stat-label">skin tone</div></div>
+</div>
+<div class="dl-row" id="dl-row" style="display:none">
+  <button class="btn" onclick="downloadTxt()">Download .txt (### separated)</button>
+  <button class="btn" onclick="copyAll()">Copy all</button>
+</div>
+<div id="list" class="lk-list"></div>
+
+<script>
+// ─── UTILITIES ────────────────────────────────────────────────────────────────
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function pickAge(range) {
+  const map = { '18-25': [18,25], '25-35': [25,35], '35-50': [35,49], '45-60': [45,59], '65+': [65,78] };
+  const [lo, hi] = map[range];
+  return Math.floor(Math.random() * (hi - lo + 1)) + lo;
+}
+
+// ─── BUILD / HEIGHT ───────────────────────────────────────────────────────────
+const BUILD = {
+  F: [
+    "petite, around 155–158cm, slight frame, narrow shoulders",
+    "short, around 158–162cm, compact build, soft silhouette",
+    "average height around 163–166cm, slim build, balanced proportions",
+    "average height around 163–166cm, average build, slight softness at waist",
+    "average height around 163–166cm, fuller build, rounded shoulders",
+    "average height around 164–167cm, hourglass build, defined waist",
+    "average height around 163–166cm, straight build, slim hips, minimal curve",
+    "tall, around 170–175cm, lean build, long limbs",
+    "tall, around 170–174cm, athletic build, broad shoulders",
+    "short, around 158–162cm, stocky and compact, wider hips",
+    "petite, slight fuller build, soft rounded silhouette",
+    "average height around 163–166cm, heavyset build, full chest and waist"
+  ],
+  M: [
+    "short, around 168–172cm, lean build, narrow frame",
+    "short, around 168–172cm, compact and stocky, wide shoulders",
+    "average height around 175–179cm, lean build, narrow frame",
+    "average height around 175–179cm, average build, moderate shoulder width",
+    "average height around 175–179cm, athletic build, broad shoulders, defined chest",
+    "average height around 175–179cm, stocky build, wide shoulders, compact",
+    "average height around 175–179cm, heavyset build, full chest and waist",
+    "average height around 176–180cm, slight build, long limbs",
+    "tall, around 183–188cm, lean build, long limbs",
+    "tall, around 183–187cm, broad build, wide shoulders",
+    "average height around 175–179cm, slight paunch, moderate shoulder width"
+  ]
+};
+
+// ─── FACE ─────────────────────────────────────────────────────────────────────
+const FACE = {
+  F: [
+    "round face, full cheeks, soft jawline, wide forehead",
+    "oval face, balanced proportions, slightly prominent cheekbones, soft chin",
+    "heart-shaped face, wider forehead, high cheekbones, narrowing to a soft chin",
+    "square face, defined jaw, broad forehead, angular but soft",
+    "long face, defined jaw, high forehead, prominent nose bridge",
+    "round face with high cheekbones and a slight double chin",
+    "oval face with a slightly wide nose, full lips, and defined brow ridge",
+    "heart-shaped face with narrow chin and rounded forehead",
+    "wide face, flat cheekbones, broad nose, full lips",
+    "oval face, slightly asymmetric jaw, softly pointed chin"
+  ],
+  M: [
+    "square jaw, prominent brow ridge, broad forehead",
+    "round face, full cheeks, soft chin, wide-set eyes",
+    "oval face, balanced proportions, moderate jaw, clear brow",
+    "rectangular face, long and angular, defined jaw",
+    "diamond face, prominent cheekbones, narrow forehead and chin",
+    "round face with heavy jaw and low brow",
+    "square jaw with slight jowling, prominent nose",
+    "wide forehead, narrow jaw, slightly sunken cheeks",
+    "oval face, wide flat nose, slightly heavy brow",
+    "long face, angular jaw, narrow forehead, deep-set eyes"
+  ]
+};
+
+// ─── SKIN — by tone × age range ───────────────────────────────────────────────
+const SKIN = {
+  fair: {
+    '18-25': [
+      "fair skin, faint pink undertone, visible pore texture on nose and forehead, natural slight redness at cheeks",
+      "fair skin, cool pink undertone, clear complexion with light surface texture, faint redness at nose"
+    ],
+    '25-35': [
+      "fair skin with cool pink undertone, natural pore texture, occasional light blemish, slight redness at cheeks",
+      "fair skin, light pink undertone, fine pores visible, natural uneven colour across cheeks"
+    ],
+    '35-50': [
+      "fair skin with visible fine lines at eye corners and between brows, natural colour variation, faint redness around nose, slight pore texture on forehead",
+      "fair skin, fine lines beginning at eye corners, slight uneven tone, natural redness across nose and cheeks"
+    ],
+    '45-60': [
+      "fair skin with light age spots near temples, deeper expression lines around mouth and eyes, slight crepiness at jaw",
+      "fair skin, expression lines around eyes and mouth, some light sun spots, natural slight dullness at forehead"
+    ],
+    '65+': [
+      "fair skin with visible age spots on face, pronounced expression lines, thinner skin quality at jaw and temples",
+      "fair skin, deep expression lines, age spots across cheeks and forehead, visible thinning at jaw"
+    ]
+  },
+  light: {
+    '18-25': [
+      "light skin, warm neutral undertone, natural pore texture, clear complexion with light freckling across nose",
+      "light skin, slight warm undertone, visible pore texture, minimal blemishes, light freckling at cheeks"
+    ],
+    '25-35': [
+      "light skin, natural pore texture, slight warm undertone, minor colour variation across cheeks",
+      "light skin with warm neutral undertone, fine pores, slight unevenness across nose bridge"
+    ],
+    '35-50': [
+      "light skin with warm undertone, fine lines at eye corners, natural uneven colour, light freckling on cheeks and nose",
+      "light skin, expression lines beginning at eye corners and forehead, slight freckling, natural pore texture"
+    ],
+    '45-60': [
+      "light skin with expression lines around eyes and mouth, some light sun spots, natural slight dullness",
+      "light skin, visible expression lines, light age spots at temples, slight uneven tone across cheeks"
+    ],
+    '65+': [
+      "light skin with pronounced age spots, deep expression lines, natural unevenness, visible temples",
+      "light skin, deep expression lines around mouth and eyes, age spots across forehead and cheeks, slight ashiness at jaw"
+    ]
+  },
+  'light-medium': {
+    '18-25': [
+      "light olive skin, warm undertone, natural texture with visible pores, slight oiliness on T-zone",
+      "light olive skin, warm golden undertone, natural skin texture, healthy slight shine on forehead"
+    ],
+    '25-35': [
+      "light olive skin, warm golden undertone, natural skin texture, healthy slight shine, minimal lines",
+      "light olive skin, golden undertone, fine pore texture, slight surface oil at nose and forehead"
+    ],
+    '35-50': [
+      "light olive skin with golden undertone, fine lines forming at eye corners, natural texture, slight hyperpigmentation around mouth",
+      "light olive skin, warm undertone, expression lines at eye corners, slight uneven tone at cheeks, natural pore texture"
+    ],
+    '45-60': [
+      "light olive skin with visible hyperpigmentation at cheeks and forehead, expression lines, warm undertone intact",
+      "light olive skin, noticeable uneven tone, expression lines around eyes and mouth, slight darkening under eyes"
+    ],
+    '65+': [
+      "light olive skin with pronounced hyperpigmentation, deep expression lines, warm undertone, slight thinning at jaw",
+      "light olive skin, significant hyperpigmentation, deep expression lines, natural texture with some dryness at hairline"
+    ]
+  },
+  medium: {
+    '18-25': [
+      "medium warm brown skin, golden undertone, natural healthy glow, slight oiliness on T-zone, visible pore texture",
+      "medium brown skin, warm undertone, natural healthy shine, fine pore texture, even complexion"
+    ],
+    '25-35': [
+      "medium brown skin, warm undertone, natural even texture, healthy shine, minimal visible lines",
+      "medium warm brown skin, golden undertone, slight surface shine, healthy complexion, fine pores"
+    ],
+    '35-50': [
+      "medium brown skin with warm undertone, some hyperpigmentation on cheeks and forehead, fine lines at eye corners, natural texture",
+      "medium brown skin, warm golden undertone, slight hyperpigmentation around mouth, expression lines beginning at eyes"
+    ],
+    '45-60': [
+      "medium brown skin with noticeable hyperpigmentation, expression lines around eyes and mouth, warm undertone",
+      "medium brown skin, significant hyperpigmentation at cheeks and forehead, deeper expression lines, slight unevenness"
+    ],
+    '65+': [
+      "medium brown skin with significant hyperpigmentation, pronounced expression lines, natural dryness at hairline and jaw",
+      "medium brown skin, deep expression lines, major hyperpigmentation across forehead and cheeks, slight ashiness"
+    ]
+  },
+  'medium-deep': {
+    '18-25': [
+      "deep warm brown skin, natural healthy glow, slightly oily T-zone, fine pore texture, even tone",
+      "deep warm brown skin, rich undertone, natural shine, fine pores, clear even complexion"
+    ],
+    '25-35': [
+      "deep warm brown skin, natural rich tone, slight surface shine, healthy complexion, minimal lines",
+      "deep brown skin, warm undertone, healthy glow, fine pore texture, even tone with slight shine"
+    ],
+    '35-50': [
+      "deep warm brown skin, some hyperpigmentation around eyes and mouth, natural even texture, slight dryness at temples",
+      "deep brown skin, warm undertone, slight hyperpigmentation at cheeks, expression lines beginning at eye corners"
+    ],
+    '45-60': [
+      "deep warm brown skin, noticeable hyperpigmentation, slight greying of overall tone, natural unevenness, expression lines",
+      "deep brown skin, significant hyperpigmentation, deeper expression lines, slight ashiness at jaw and hairline"
+    ],
+    '65+': [
+      "deep warm brown skin, pronounced hyperpigmentation, deeper expression lines, slight ashiness at jaw and hairline",
+      "deep brown skin, major hyperpigmentation, deep expression lines, significant ashiness, slight dryness"
+    ]
+  },
+  deep: {
+    '18-25': [
+      "rich dark skin, warm undertone, natural shine, fine pore texture, even complexion",
+      "rich dark brown skin, warm deep undertone, natural healthy glow, minimal surface texture issues"
+    ],
+    '25-35': [
+      "rich dark brown skin, warm undertone, natural healthy glow, minimal visible texture issues, slight shine",
+      "rich dark skin, deep warm undertone, even complexion, natural surface shine, fine pores"
+    ],
+    '35-50': [
+      "rich dark brown skin, subtle ashiness at hairline and jaw, slight hyperpigmentation around mouth, natural texture",
+      "rich dark skin, warm undertone, some hyperpigmentation at cheeks, expression lines beginning at eye corners, slight dryness at temples"
+    ],
+    '45-60': [
+      "rich dark brown skin with visible ashiness, some hyperpigmentation, slight greying of overall tone, expression lines",
+      "rich dark skin, significant ashiness at jaw and hairline, hyperpigmentation, deeper expression lines"
+    ],
+    '65+': [
+      "rich dark brown skin with significant ashiness and hyperpigmentation, pronounced expression lines, slight thinning quality",
+      "rich dark skin, major ashiness, deep expression lines, pronounced hyperpigmentation, natural dryness at jawline"
+    ]
+  }
+};
+
+// ─── HAIR — by gender × age ───────────────────────────────────────────────────
+const HAIR = {
+  F: {
+    '18-25': [
+      "shoulder-length brown hair, slight natural wave, centre-parted, slightly unstyled",
+      "long straight hair in dark blonde, minimal styling, slight flyaways",
+      "short choppy bob in warm brown, grown-out, blunt ends",
+      "curly medium-length hair in dark brown, natural texture, slightly frizzy",
+      "long hair loosely tied in a low bun, mid-brown, strands falling out",
+      "medium-length hair in auburn, naturally wavy, unstyled",
+      "natural afro in dark brown, medium density, slightly compressed on one side",
+      "long box braids in dark brown, mid-length, some frizz at roots",
+      "long straight hair in near-black, slight natural shine, unstyled"
+    ],
+    '25-35': [
+      "shoulder-length hair in warm light brown, slight wave, loosely parted, grown-out roots",
+      "chin-length bob in medium brown, slight texture, not freshly styled",
+      "long wavy hair in chestnut brown, natural volume, some frizz",
+      "dark hair pulled loosely in a low ponytail, slight baby hairs at temples",
+      "medium-length hair with natural curl in dark brown, unstyled",
+      "shoulder-length hair with visible blonde highlights on light brown base, grown-out",
+      "short cropped natural hair in dark brown, slightly grown-out at edges",
+      "medium-length hair in warm ash brown, flat and slightly limp from not being styled"
+    ],
+    '35-50': [
+      "shoulder-length hair in mid-brown with first greys at temples, loosely parted",
+      "medium-length hair, natural dark brown with visible silver strands at roots, unstyled",
+      "short bob in warm ash brown, minimal grey, grown-out slightly",
+      "long dark hair with scattered grey, worn loose, slight split ends",
+      "medium-length salt-and-pepper hair, slight wave, not freshly done",
+      "short well-cut hair in warm grey, natural texture, minimal styling"
+    ],
+    '45-60': [
+      "short to medium hair in silver-grey, grown-out at roots, natural texture",
+      "shoulder-length hair, predominantly grey with warm undertone, loosely worn",
+      "chin-length bob in cool grey, slightly grown-out, not freshly set",
+      "short natural grey hair with some warmth remaining, minimal product",
+      "medium-length dark brown hair with significant grey coverage, worn loose",
+      "layered medium hair in warm silver-grey, slightly flat from previous day"
+    ],
+    '65+': [
+      "short silver-white hair, neatly kept but not freshly styled",
+      "white hair in a soft set, short length, slightly compressed",
+      "shoulder-length silver hair, naturally wavy, unstyled",
+      "short well-kept hair in pure white, grown-out slightly at nape",
+      "medium-length grey-white hair, slightly wiry texture, loosely worn"
+    ]
+  },
+  M: {
+    '18-25': [
+      "short dark brown hair, slightly grown-out on top, tapered sides",
+      "medium-length messy hair in dark brown, natural texture, unstyled",
+      "short cropped hair in near-black, tight texture, slightly grown-out",
+      "longer wavy hair in light brown, slightly unkempt, pushed back",
+      "short fade with textured top in dark brown, grown-out",
+      "natural curls in dark brown, medium length, slightly compressed on one side",
+      "short and neat in warm brown, day-old styling, slightly flat"
+    ],
+    '25-35': [
+      "short professional cut in dark brown, slightly grown-out, side-parted",
+      "medium-length hair in brown, loosely pushed back, not freshly styled",
+      "short textured cut, dark with slight fade, grown-out",
+      "longer hair in warm brown, pushed back, slight wave from previous styling",
+      "close-cropped natural hair in very dark brown, slightly grown-out",
+      "short curly hair in mid-brown, natural texture, unstyled"
+    ],
+    '35-50': [
+      "short brown hair with first greys at temples, slightly grown-out",
+      "receding hairline, dark brown hair combed neatly to one side",
+      "short salt-and-pepper hair, close cut, slightly grown-out at sides",
+      "medium-length greying hair, pushed back, not freshly washed",
+      "thin light brown hair, combed over, visible scalp at crown",
+      "short cropped grey-brown hair, minimal styling",
+      "natural tight-cropped hair, grey-black mix, slightly grown-out"
+    ],
+    '45-60': [
+      "short grey hair, well-maintained but not freshly cut",
+      "thinning salt-and-pepper hair, side-parted, slightly flat",
+      "receding hairline, predominantly grey, short and neatly combed",
+      "bald on top with grey fringe around sides and back, short",
+      "short silver hair, close cut, slight growth at sides",
+      "close-cropped grey-black natural hair, slightly grown-out"
+    ],
+    '65+': [
+      "short white or silver hair, neatly combed but not freshly cut",
+      "bald or near-bald with grey fringe at sides, closely cropped",
+      "short grey-white hair, slightly thinning at crown",
+      "receding white hair, neatly kept, short at sides",
+      "close-cropped silver hair, slight growth visible"
+    ]
+  }
+};
+
+// ─── REGIONAL HAIR POOL ADDITIONS ─────────────────────────────────────────────
+// Added to pool at 1× weight to introduce regional colour distribution
+const HAIR_REGIONAL = {
+  NA: {
+    F: {
+      '18-25': ["medium-length hair in warm honey blonde, slight wave, grown-out roots", "long straight hair in platinum blonde, visible regrowth at part"],
+      '25-35': ["shoulder-length hair in highlighted warm blonde, grown-out roots showing", "medium-length dark auburn hair, slight curl, unstyled"],
+      '35-50': ["shoulder-length blonde hair with significant grey mixing, loosely worn", "medium-length highlighted hair, grown-out, warm blonde over grey base"],
+      '45-60': ["short to medium hair in warm blonde, predominantly grey at roots"],
+      '65+': ["short warm-toned silver hair, slight blonde undertone remaining"]
+    },
+    M: {
+      '18-25': ["short hair in sandy blonde, slightly grown-out, textured top"],
+      '25-35': ["short sandy brown hair, slightly grown-out, minimal styling"],
+      '35-50': ["light brown to sandy hair, significant grey mixing, combed back"],
+      '45-60': ["short grey-blonde hair, thinning at crown"],
+      '65+': ["short white-blonde hair, thinning slightly"]
+    }
+  },
+  UK: {
+    F: {
+      '18-25': ["shoulder-length mousy brown hair, slight wave, natural root colour", "medium-length hair in dark auburn, naturally wavy, slightly frizzy from humidity"],
+      '25-35': ["shoulder-length hair in warm mousy brown, natural root colour, not freshly washed", "medium-length hair in dark auburn, slight wave, loosely worn"],
+      '35-50': ["mousy brown hair with significant grey mixing, shoulder-length, unstyled", "medium-length warm brown hair, greying at roots"],
+      '45-60': ["short to medium grey-brown hair, natural texture"],
+      '65+': ["short silver hair, warm undertone, neatly worn"]
+    },
+    M: {
+      '18-25': ["short sandy brown hair, slightly grown-out, natural texture"],
+      '25-35': ["short mousy brown hair, professional cut, grown-out slightly"],
+      '35-50': ["mousy brown to grey hair, receding slightly, combed to side"],
+      '45-60': ["short grey hair, thinning at crown, natural texture"],
+      '65+': ["short white or silver hair, minimal, neatly worn"]
+    }
+  },
+  DE: {
+    F: {
+      '18-25': ["medium-length hair in light ash blonde, natural texture, unstyled", "straight medium-length hair in dark blonde, slight regrowth"],
+      '25-35': ["shoulder-length ash blonde hair, grown-out roots, loosely worn", "medium-length hair in warm dark blonde, natural wave, unstyled"],
+      '35-50': ["ash blonde hair with grey mixing, shoulder-length, natural texture", "medium-length hair, light brown to ash blonde, greying at roots"],
+      '45-60': ["short ash grey hair, grown-out blonde undertone at ends"],
+      '65+': ["short silver-ash hair, neatly worn, minimal styling"]
+    },
+    M: {
+      '18-25': ["short ash blonde hair, slightly grown-out, textured", "light brown to blonde hair, short, minimal styling"],
+      '25-35': ["short dark blonde to light brown hair, professional cut, grown-out"],
+      '35-50': ["ash blonde to grey hair, short, receding slightly"],
+      '45-60': ["short grey-blonde hair, thinning at crown"],
+      '65+': ["short white or silver hair, neatly combed"]
+    }
+  },
+  NL: {
+    F: {
+      '18-25': ["straight medium-length hair in light blonde, natural shine, centre-parted", "shoulder-length ash blonde, grown-out, minimal styling"],
+      '25-35': ["shoulder-length blonde hair, warm tone, natural root colour showing", "medium-length ash blonde, loosely worn, slight wave"],
+      '35-50': ["blonde hair with notable grey mixing, shoulder-length, unstyled", "medium-length hair, light ash blonde to grey"],
+      '45-60': ["short silver-blonde hair, natural texture"],
+      '65+': ["short pure silver or white hair, neatly worn"]
+    },
+    M: {
+      '18-25': ["short light blonde hair, slightly grown-out, natural texture"],
+      '25-35': ["short ash blonde to light brown hair, professional cut"],
+      '35-50': ["light brown to grey hair, short, slight receding hairline"],
+      '45-60': ["short silver-blonde hair, thinning slightly"],
+      '65+': ["short white or silver hair, minimal and neat"]
+    }
+  }
+};
+
+// ─── EYES ─────────────────────────────────────────────────────────────────────
+const EYES = {
+  F: [
+    "warm brown eyes, medium tone, almond-shaped",
+    "dark brown eyes, deep-set, slightly downturned",
+    "hazel eyes, green-brown, round, slightly wide-set",
+    "light brown eyes, warm tone, wide-set",
+    "blue-grey eyes, pale, slightly hooded",
+    "green eyes, medium tone, slightly upturned outer corners",
+    "dark eyes, near-black, almond-shaped, wide-set",
+    "pale grey eyes, slightly deep-set, neutral expression",
+    "warm amber-brown eyes, slightly hooded lids",
+    "light blue eyes, cool tone, round"
+  ],
+  M: [
+    "brown eyes, medium warm tone, slightly deep-set",
+    "dark brown eyes, strong brow, slightly deep-set",
+    "blue eyes, pale, wide-set, under moderate brow",
+    "hazel eyes, green-brown, medium-set",
+    "grey eyes, slightly deep-set, neutral",
+    "dark eyes, near-black, slightly hooded",
+    "light brown eyes, warm tone, moderate set",
+    "dark brown eyes under prominent brow ridge",
+    "blue-grey eyes, heavy brow, deep-set",
+    "warm brown eyes, round, moderate set"
+  ]
+};
+
+// ─── NOTABLE FEATURES — ~60% chance ──────────────────────────────────────────
+const NOTABLE = {
+  F: [
+    "light freckling across nose and cheeks",
+    "small mole above lip",
+    "natural strong brows, ungroomed",
+    "thin naturally sparse brows",
+    "slight dark circles under eyes",
+    "prominent nose, slightly wide at bridge",
+    "thin lips, natural colour",
+    "full lips, no product",
+    "reading glasses, thin metal frame",
+    "faint acne scarring at cheeks",
+    "slight gap between front teeth",
+    "one small visible mole on jaw",
+    "strong jaw, slightly asymmetric"
+  ],
+  M: [
+    "light stubble, two to three days growth",
+    "short full beard, natural ungroomed shape",
+    "heavy stubble, slightly dishevelled",
+    "clean shaven, slight redness at jaw from shaving",
+    "light freckling across nose",
+    "prominent nose, slight bump at bridge",
+    "strong brow ridge, naturally bushy brows",
+    "slight bags under eyes",
+    "reading glasses, simple wire frame",
+    "faint acne scarring at jaw and cheeks",
+    "wide flat nose, broad at bridge",
+    "slight receding at temples, not yet notable"
+  ]
+};
+
+// ─── AGE-SPECIFIC HAIR ADJUSTMENTS ───────────────────────────────────────────
+// Certain notable features shift with age — handled in buildLikeness logic
+
+// ─── CORE BUILD ───────────────────────────────────────────────────────────────
+function buildLikeness(gender, ageRange, region, tone) {
+  const age = pickAge(ageRange);
+
+  const build = pick(BUILD[gender]);
+  const face = pick(FACE[gender]);
+  const skin = pick(SKIN[tone][ageRange]);
+
+  // Hair: base pool + regional additions
+  const baseHair = HAIR[gender][ageRange] || [];
+  const regionalHair = (HAIR_REGIONAL[region] && HAIR_REGIONAL[region][gender] && HAIR_REGIONAL[region][gender][ageRange]) || [];
+  const hair = pick([...baseHair, ...regionalHair]);
+
+  const eyes = pick(EYES[gender]);
+
+  // Notable: ~60% chance
+  const notable = Math.random() < 0.6 ? pick(NOTABLE[gender]) : null;
+
+  return { age, build, face, skin, hair, eyes, notable };
+}
+
+// ─── PROMPT OUTPUT ────────────────────────────────────────────────────────────
+function toPrompt(lk, gender) {
+  const genderWord = gender === 'F' ? 'woman' : 'man';
+  const notablePart = lk.notable ? ` ${lk.notable}.` : '';
+  return `SUBJECT: ${lk.age}-year-old ${genderWord}, ${lk.build}, ${lk.face}, ${lk.skin}, ${lk.hair}, ${lk.eyes}.${notablePart} No visible makeup.`;
+}
+
+// ─── UI ───────────────────────────────────────────────────────────────────────
+const REGION_LABELS = { NA: 'N. America', UK: 'UK', DE: 'Germany', NL: 'Netherlands' };
+const TONE_LABELS = {
+  fair: 'Fair', light: 'Light', 'light-medium': 'Light-Medium',
+  medium: 'Medium', 'medium-deep': 'Medium-Deep', deep: 'Deep'
+};
+let likenesses = [];
+
+function generate() {
+  const gender = document.getElementById('gender').value;
+  const ageRange = document.getElementById('age').value;
+  const region = document.getElementById('region').value;
+  const tone = document.getElementById('tone').value;
+  const count = Math.min(200, Math.max(1, parseInt(document.getElementById('count').value) || 20));
+
+  likenesses = Array.from({ length: count }, (_, i) => {
+    const lk = buildLikeness(gender, ageRange, region, tone);
+    return { id: i + 1, gender, ageRange, region, tone, lk, prompt: toPrompt(lk, gender) };
+  });
+
+  const genderLabel = gender === 'F' ? 'Women' : 'Men';
+  document.getElementById('s-total').textContent = count;
+  document.getElementById('s-demo').textContent = genderLabel + ' ' + ageRange;
+  document.getElementById('s-region').textContent = REGION_LABELS[region];
+  document.getElementById('s-tone').textContent = TONE_LABELS[tone];
+  document.getElementById('stats').style.display = 'flex';
+  document.getElementById('dl-row').style.display = 'flex';
+
+  renderList();
+}
+
+function renderList() {
+  const list = document.getElementById('list');
+  list.innerHTML = likenesses.map(o => {
+    const preview = `${o.lk.age}yo ${o.gender === 'F' ? 'F' : 'M'} · ${o.lk.face.split(',')[0]} · ${o.lk.hair.split(',')[0]}`;
+    const slots = [
+      ['age', o.lk.age],
+      ['build', o.lk.build],
+      ['face', o.lk.face],
+      ['skin', o.lk.skin],
+      ['hair', o.lk.hair],
+      ['eyes', o.lk.eyes],
+      ['notable', o.lk.notable || '—']
+    ].map(([k, v]) => `<div class="slot-row"><span class="slot-name">${k}</span><span class="slot-val">${v}</span></div>`).join('');
+
+    return `<div class="lk-card">
+      <div class="lk-head" onclick="toggle(${o.id})">
+        <span class="lk-num">#${String(o.id).padStart(2, '0')}</span>
+        <span class="lk-preview">${preview}</span>
+        <span style="font-size:12px;color:#888" id="arr-${o.id}">▾</span>
+      </div>
+      <div class="lk-body" id="body-${o.id}" style="display:none">
+        ${slots}
+        <div class="prompt-box">${o.prompt}</div>
+        <div class="copy-row">
+          <button class="btn btn-sm" onclick="copyOne(${o.id})">Copy SUBJECT line</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggle(id) {
+  const b = document.getElementById('body-' + id);
+  const a = document.getElementById('arr-' + id);
+  const open = b.style.display !== 'none';
+  b.style.display = open ? 'none' : 'block';
+  a.textContent = open ? '▾' : '▴';
+}
+
+function copyOne(id) {
+  const o = likenesses.find(x => x.id === id);
+  navigator.clipboard.writeText(o.prompt);
+}
+
+function copyAll() {
+  navigator.clipboard.writeText(likenesses.map(o => o.prompt).join('###'));
+}
+
+function downloadTxt() {
+  const g = document.getElementById('gender').value === 'F' ? 'Women' : 'Men';
+  const a = document.getElementById('age').value;
+  const r = document.getElementById('region').value;
+  const t = document.getElementById('tone').value;
+  const content = likenesses.map(o => o.prompt).join('###');
+  const blob = new Blob([content], { type: 'text/plain' });
+  const el = document.createElement('a');
+  el.href = URL.createObjectURL(blob);
+  el.download = `likenesses_${r}_${g}_${a}_${t}.txt`;
+  el.click();
+}
+</script>
+</body>
+</html>

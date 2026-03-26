@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Environment Generator</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #111; padding: 2rem; max-width: 920px; margin: 0 auto; }
+.header { margin-bottom: 1.5rem; }
+.header h1 { font-size: 18px; font-weight: 500; }
+.header p { font-size: 13px; color: #666; margin-top: 4px; }
+.controls { display: flex; gap: 12px; align-items: flex-end; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.05em; }
+select, input[type=number] { height: 36px; padding: 0 10px; border: 0.5px solid #ccc; border-radius: 8px; background: #fff; color: #111; font-size: 14px; font-family: inherit; min-width: 140px; }
+input[type=number] { min-width: 80px; }
+.btn { height: 36px; padding: 0 16px; border: 0.5px solid #ccc; border-radius: 8px; background: #fff; color: #111; font-size: 14px; font-family: inherit; cursor: pointer; white-space: nowrap; }
+.btn:hover { background: #f5f5f5; }
+.btn-primary { background: #111; color: #fff; border-color: #111; }
+.btn-primary:hover { opacity: 0.85; }
+.btn-sm { height: 28px; padding: 0 10px; font-size: 12px; }
+.stats { display: flex; gap: 12px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.stat { background: #f5f5f5; border-radius: 8px; padding: 12px 16px; flex: 1; min-width: 80px; }
+.stat-val { font-size: 18px; font-weight: 500; }
+.stat-label { font-size: 12px; color: #666; margin-top: 2px; }
+.env-list { display: flex; flex-direction: column; gap: 8px; }
+.env-card { background: #fff; border: 0.5px solid #e0e0e0; border-radius: 12px; overflow: hidden; }
+.env-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; cursor: pointer; }
+.env-head:hover { background: #f9f9f9; }
+.env-num { font-size: 12px; color: #666; font-weight: 500; }
+.env-preview { font-size: 13px; color: #111; flex: 1; margin: 0 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.env-body { border-top: 0.5px solid #e0e0e0; padding: 12px 14px; }
+.slot-row { display: flex; gap: 10px; padding: 5px 0; border-bottom: 0.5px solid #f0f0f0; }
+.slot-row:last-child { border-bottom: none; }
+.slot-name { font-size: 11px; font-weight: 500; color: #888; text-transform: uppercase; letter-spacing: 0.07em; min-width: 90px; padding-top: 1px; }
+.slot-val { font-size: 13px; color: #111; line-height: 1.5; }
+.prompt-box { margin-top: 10px; background: #f5f5f5; border-radius: 8px; padding: 10px 12px; font-size: 12px; color: #555; line-height: 1.6; }
+.copy-row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+.dl-row { display: flex; gap: 8px; margin-bottom: 1.5rem; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>Environment generator</h1>
+  <p>Randomized interior set references by socioeconomic tier — lifestyle photography format</p>
+</div>
+<div class="controls">
+  <div class="field">
+    <label>Region</label>
+    <select id="region">
+      <option value="NA">North America</option>
+      <option value="UK">UK</option>
+      <option value="DE" selected>Germany</option>
+      <option value="NL">Netherlands</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>Tier</label>
+    <select id="tier">
+      <option value="budget">Budget</option>
+      <option value="mid" selected>Mid</option>
+      <option value="established">Established</option>
+      <option value="affluent">Affluent</option>
+      <option value="luxury">Luxury</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>Room</label>
+    <select id="room">
+      <option value="living" selected>Living Room</option>
+      <option value="kitchen">Kitchen</option>
+      <option value="bedroom">Bedroom</option>
+      <option value="bathroom">Bathroom</option>
+      <option value="overview">Overview</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>Style</label>
+    <select id="style">
+      <option value="everyday" selected>Everyday</option>
+      <option value="elevated">Elevated</option>
+      <option value="smart">Smart</option>
+      <option value="social">Social</option>
+      <option value="offduty">Off-duty</option>
+      <option value="lounge">Lounge</option>
+      <option value="active">Active</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>Time</label>
+    <select id="time">
+      <option value="day" selected>Day</option>
+      <option value="night">Night</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>Count</label>
+    <input type="number" id="count" value="20" min="1" max="200" />
+  </div>
+  <div class="field">
+    <label>&nbsp;</label>
+    <button class="btn btn-primary" onclick="generate()">Generate</button>
+  </div>
+</div>
+<div class="stats" id="stats" style="display:none">
+  <div class="stat"><div class="stat-val" id="s-total">0</div><div class="stat-label">environments</div></div>
+  <div class="stat"><div class="stat-val" id="s-tier">—</div><div class="stat-label">tier</div></div>
+  <div class="stat"><div class="stat-val" id="s-room">—</div><div class="stat-label">room</div></div>
+  <div class="stat"><div class="stat-val" id="s-region">—</div><div class="stat-label">region</div></div>
+  <div class="stat"><div class="stat-val" id="s-style">—</div><div class="stat-label">style</div></div>
+  <div class="stat"><div class="stat-val" id="s-time">—</div><div class="stat-label">time</div></div>
+</div>
+<div class="dl-row" id="dl-row" style="display:none">
+  <button class="btn" onclick="downloadTxt()">Download .txt (### separated)</button>
+  <button class="btn" onclick="copyAll()">Copy all prompts</button>
+</div>
+<div id="list" class="env-list"></div>
+
+<script>
+// ─── ROOM DESCRIPTIONS ────────────────────────────────────────────────────────
+// Keyed by tier → room
+const ROOMS = {
+  budget: {
+    living: [
+      "second-hand two-seater sofa in faded grey, floor lamp with a bent shade, IKEA KALLAX unit with assorted items stuffed in it, a few posters blu-tacked to the wall, small TV on a basic flat-pack stand, worn carpet or laminate floor",
+      "corner sofa in dark green microfibre, worn in patches on the armrests, plastic storage boxes visible under a shelf, basic brown rug, a fold-out table being used as a coffee table, a few plants in various states",
+      "mismatched armchair and loveseat from different sets, string lights along one wall, milk crate repurposed as a side table, a surviving Monstera, small Bluetooth speaker on the windowsill, a pile of shoes by the door"
+    ],
+    kitchen: [
+      "basic white laminate cabinets, freestanding washing machine tucked in a corner, two-ring electric hob, mismatched mugs lined up on the counter, cereal boxes stored on top of the cabinets, cheap plastic chopping board",
+      "galley kitchen, cheap white tiles, basic kettle and supermarket toaster, a drying rack with plates and mugs, one decent knife on the counter, plastic storage containers stacked on an open shelf",
+      "compact kitchen, budget laminate units, a microwave taking up a third of the counter, takeaway menus stuck to the fridge with magnets, one plant on the windowsill trying its best"
+    ],
+    bedroom: [
+      "double mattress on a basic metal bedframe, dark polyester duvet, clothes rail in one corner instead of a wardrobe, a desk made from a door on trestles with a laptop, a few personal items and a phone charger on the floor",
+      "single bed pushed against the wall, fairy lights strung along the ceiling for atmosphere, second-hand desk with a monitor, some clothes folded on a chair because the wardrobe is full, a stack of books on the floor"
+    ],
+    bathroom: [
+      "basic white bathroom suite, visible silicone sealant around the bath, a row of budget shampoo and shower gel bottles on the bath edge, plastic shower curtain in white, single towel on the rail, small mirror above the sink",
+      "small bathroom, white tiles with grout that needs attention, three different brands of body wash in the shower, a bath mat that has seen better days, functional and nothing more"
+    ],
+    overview: [
+      "small rented flat, functional entrance with bikes or bags near the door, mix of hand-me-down and flat-pack furniture throughout, personal items making it feel lived-in — photos on the fridge, plants on the windowsills, a personality coming through despite the budget",
+      "compact rental apartment, every room small but maximised, a combination of IKEA basics and second-hand finds, posters and photos pinned to walls, the kind of flat where friends come round and sit on the floor"
+    ]
+  },
+
+  mid: {
+    living: [
+      "IKEA three-seater sofa in light grey, jute rug underneath, floating shelf with a curated row of books, a trailing plant, a framed print in a simple black frame, floor lamp in the corner creating warm light",
+      "dusty pink velvet two-seater, LACK coffee table with a candle and a few magazines, several plants at different heights, a simple gallery wall of A4 prints in IKEA frames, a throw blanket draped over one arm of the sofa",
+      "low IKEA KIVIK sofa in beige, wooden coffee table with a stack of books and a small vase, a decent Bluetooth speaker on the shelf, linen curtains that hit the floor, a medium-sized Monstera"
+    ],
+    kitchen: [
+      "IKEA kitchen in white or light grey, a French press on the counter, simple knife block, herbs growing in small terracotta pots on the windowsill, basic ceramic bowls stacked on an open shelf, a wooden chopping board",
+      "flat-pack kitchen with better handles retrofitted, a good coffee dripper out, small succulent on the windowsill, a decent set of pans on the hob, clean but lived-in surfaces",
+      "galley kitchen, magnetic knife strip on the wall, a jar of dried pasta visible on the shelf, basic but decent appliances, a cork board with some notes and a recipe printed out"
+    ],
+    bedroom: [
+      "IKEA HEMNES bed frame in white, linen duvet in off-white, one bedside table with a lamp and a book left open, a simple art print in a thin black frame above the bed, curtains in a warm neutral",
+      "mid-range wooden bed frame, cream or sage linen duvet, two mismatched but complementary bedside tables, a floor lamp in one corner, a small plant on the windowsill",
+      "bed with a padded headboard in light grey, a decent linen throw, bedside table with a lamp, a phone charger, and a glass of water, a framed print leaning against the wall not yet hung"
+    ],
+    bathroom: [
+      "white tiles with a subtly coloured grout, glass shelf with a curated selection of skincare and hair products, a small plant on the shelf, linen hand towel on a ring, simple circular mirror",
+      "small bathroom, white walls, a decent shower over the bath, products arranged by height on the ledge, a patterned bath mat, a scented candle on the edge of the bath"
+    ],
+    overview: [
+      "rented or first-owned flat, IKEA foundation throughout with personal upgrades starting to appear — better handles, a quality lamp, one framed print, a personality beginning to emerge in the details",
+      "compact apartment, each room small but considered, a mix of flat-pack and found pieces, plants everywhere, a home that is becoming rather than already arrived"
+    ]
+  },
+
+  established: {
+    living: [
+      "three-seater sofa in charcoal linen, wooden coffee table with a small stack of art books and a ceramic vase, built-in bookshelves filled with books and a few objects, a large plant in a quality pot, herringbone parquet floor, quality floor lamp in the corner",
+      "L-shaped sofa in warm greige, low wooden side table, a framed original print on the wall, quality rug in muted ochre and beige, fireplace as the focal point, clean and considered without being precious",
+      "boucle two-seater and armchair, concrete-effect coffee table, gallery wall of framed prints at varying sizes, large Monstera in a stone pot, a record player on a credenza, quality but lived-in"
+    ],
+    kitchen: [
+      "shaker kitchen in dark navy, quartz worktop, a quality espresso machine on the counter, ceramic bowls visible on an open shelf, a few herbs in quality pots on the windowsill, one good cookbook propped open",
+      "handleless kitchen in off-white, solid wood worktop, a cast iron pan on the hob, a simple fruit bowl with seasonal produce, good quality ceramics on display, a drawer with visible quality fittings",
+      "kitchen with a small island, marble-effect worktop, integrated appliances, a French press, a knife block with quality knives, a small vase with fresh herbs"
+    ],
+    bedroom: [
+      "quality wooden bed frame in natural oak, good linen duvet in white or pale grey, matching bedside tables with lamps, one large framed print above the bed, no clutter on the surfaces, curtains in warm linen",
+      "upholstered bed in oatmeal linen, a quality linen throw, bedside table with a lamp and a stack of books, a quality rug on wooden floor, a simple chair in the corner with something over it",
+      "clean bedroom, good bed, quality linen in neutral tones, a built-in wardrobe with proper doors, framed print, a small plant, everything in its place"
+    ],
+    bathroom: [
+      "large format white tiles, walk-in shower with a simple rail and good pressure, products organised on a shelf — not too many, thick white towels on a heated rail, quality mirror, clean chrome fixtures",
+      "renovated bathroom, subway tile in white, a freestanding bath or quality shower, a small plant on the windowsill, linen hand towel, curated products on a glass shelf"
+    ],
+    overview: [
+      "owned flat or house, a mix of quality pieces accumulated over time — some from IKEA improved, some investment buys, art on the walls, personal and considered, a home that has been lived in and thought about",
+      "period building or quality new-build, renovated room by room, original features preserved where they exist, a home that feels like it belongs to someone specific"
+    ]
+  },
+
+  affluent: {
+    living: [
+      "designer sofa in quality fabric — deep bouclé or quality linen, marble or stone coffee table, one large original artwork on the wall, a quality floor rug in neutral tones, a few curated objects, nothing out of place, architectural quality lighting",
+      "large corner sofa in quality charcoal fabric, low travertine coffee table, one significant piece of art, quality standing lamp with a linen shade, a single well-placed plant, herringbone parquet or wide-plank oak floor",
+      "bespoke shelving unit with books and objects arranged with intent, quality sofa, original art at scale, a drinks tray on the sideboard with quality glassware, window with quality curtains floor to ceiling"
+    ],
+    kitchen: [
+      "bespoke handleless kitchen in dark lacquer, stone or Carrara marble worktop, Gaggenau or Miele appliances integrated seamlessly, a single quality flower arrangement on the island, quality ceramics on an open shelf",
+      "dark navy handleless kitchen, large island with bar seating, integrated fridge and oven, a quality espresso machine as the only visible appliance, seasonal produce in a quality bowl, one design-led object on the counter",
+      "quality white kitchen, stone worktop, professional-grade hob, copper or brass fixtures, a few quality cookbooks stacked, herbs in quality planters on the windowsill, nothing cheap in sight"
+    ],
+    bedroom: [
+      "large upholstered headboard in quality linen, Egyptian cotton duvet layered with a cashmere throw, matching bedside tables with quality lamps, one significant artwork above the bed, quality rug on oak floor, curtains floor to ceiling",
+      "hotel-quality bedroom, all-white linen, custom headboard, two identical quality bedside tables, a quality bench at the foot of the bed, architectural simplicity, no visible clutter",
+      "quality bed in a large room, layered neutral bedding, shutters on the windows, a quality chair in the corner, everything chosen with care"
+    ],
+    bathroom: [
+      "spa-quality bathroom, large format stone tiles, freestanding bath, quality products arranged in a tray, thick white hotel-weight towels, brushed brass or matte black fixtures, quality integrated mirror lighting",
+      "large walk-in shower with rain head and hand shower, double vanity in stone, quality mirror with integrated lighting, a minimal product selection, thick white towels, heated floor"
+    ],
+    overview: [
+      "owned property renovated to a high specification, architectural details preserved or introduced, design-led throughout every room, quality consistent from entrance to bathroom, a home with a considered point of view",
+      "premium apartment or renovated house, concierge or private entrance, quality in every material choice, a home that required a designer or a very educated owner"
+    ]
+  },
+
+  luxury: {
+    living: [
+      "bespoke interior design, statement sofa in quality mohair or textured fabric, one museum-quality artwork on a white wall, marble or onyx side tables, concealed architectural lighting with no visible bulbs, no clutter, no cords",
+      "custom millwork shelving unit housing a curated selection of objects and books, quality sofa in a singular fabric, large-scale canvas, floor-to-ceiling windows with a view, quality rug of significant scale",
+      "minimal and architectural, a singular sofa, one large piece of art, a quality coffee table as a sculptural object, perfect natural light, the kind of room that looks empty but costs more than most homes"
+    ],
+    kitchen: [
+      "professional-grade kitchen, marble or stone worktop continuous across island and counters, integrated appliances from professional brands — Gaggenau, La Cornue or similar, a single quality flower arrangement, quality glassware on an open shelf, nothing extraneous",
+      "bespoke kitchen with unlacquered brass or stone fixtures, large island in a contrasting material, professional range with integrated hood, custom storage with no visible handles, one quality object on the counter"
+    ],
+    bedroom: [
+      "suite-quality bedroom, custom headboard upholstered in quality fabric, all-white linen from a recognisable quality brand, two identical bedside tables with quality lamps, a dressing area visible through a door, nothing that does not belong",
+      "minimal luxury bedroom, bed as the singular object in the room, quality linen, bespoke curtains floor to ceiling blocking all light, a singular artwork, the quality is in what is not there"
+    ],
+    bathroom: [
+      "bespoke stone bathroom, single material throughout — travertine or fluted stone, integrated vanity with stone surround, rain head and handheld, freestanding tub positioned as a sculptural object, heavy white towels, branded product selection in a quality tray",
+      "architectural bathroom, large format single tile from floor to ceiling, quality fixtures — brushed nickel or unlacquered brass throughout, nothing visible that should not be, heavy towels, no product clutter"
+    ],
+    overview: [
+      "trophy property — penthouse, architectural home or significant period renovation, every material choice deliberate, no off-the-shelf elements visible, quality from the entrance to the last detail, the kind of home that appears in a magazine without styling",
+      "bespoke interior by a named or unnamed designer, consistent material language throughout, quality that does not announce itself, the absence of compromise in every room"
+    ]
+  }
+};
+
+// ─── REGIONAL ARCHITECTURE ───────────────────────────────────────────────────
+// Provides the architectural wrapper — building type and structural context
+const REGIONAL = {
+  NA: [
+    "suburban detached house, vinyl or clapboard siding, attached garage, standard American residential street",
+    "apartment in a low-rise complex, outdoor stairwell access, parking lot framing the building",
+    "brownstone or row house in an urban neighbourhood, stoop entrance, original early 20th century facade",
+    "open-plan apartment in a mid-rise building, floor-to-ceiling windows, downtown or inner suburb location"
+  ],
+  UK: [
+    "Victorian terraced house, tiled front path, bay window, original brick facade, sash windows",
+    "converted Victorian or Edwardian flat, original cornicing, high ceilings, sash windows, shared entrance with post boxes",
+    "new-build estate house, uniform brick, small front garden, double-glazed windows, quiet residential street",
+    "ex-council flat, well-maintained, large windows, functional communal entrance, urban location"
+  ],
+  DE: [
+    "Altbau apartment, pre-war building, herringbone parquet floor, high ceilings with ornate cornice, tall internal doors, white walls",
+    "Gründerzeit building, large windows, original wooden floors, stucco ceiling details, wide staircase with original banister",
+    "Neubau apartment, clean and functional, modern kitchen, balcony with city view, no ornate features, efficient layout",
+    "converted loft in a former industrial building, exposed brick or concrete, high ceilings, large steel-framed windows"
+  ],
+  NL: [
+    "Dutch canal house (grachtenpand), steep internal stairs, tall narrow windows, original timber beams, brick facade",
+    "Dutch rijtjeshuis (row house), small front garden or direct street access, typical Dutch brick, cycle parking outside",
+    "modern Dutch apartment building, large windows, open-plan layout, balcony overlooking canal or street",
+    "above-shop flat on a commercial street, tall windows, urban Dutch neighbourhood, practical entrance from the side"
+  ]
+};
+
+// ─── STYLE MOOD LAYER ────────────────────────────────────────────────────────
+// Props and atmospheric cues — applied on top of tier + room
+const STYLE_MOOD = {
+  everyday: [
+    "a normal day, things in use but not messy — a book left open, a cup on the table, light doing its natural thing",
+    "mid-week lived-in quality, nothing staged, objects where they were last used, the quiet evidence of a real routine"
+  ],
+  elevated: [
+    "fresh flowers arranged in a quality vessel on the counter or table, a quality candle lit, everything put away, aspirational without trying",
+    "the room at its best — surfaces clear, one quality object placed with intention, fresh flowers, the kind of clean that looks effortless"
+  ],
+  smart: [
+    "a work bag on the chair ready to go, a planner or notebook open on the table, a laptop half-visible, productive mid-morning energy",
+    "organised and functional, a second screen or quality work setup in the background, the room of someone who has a system"
+  ],
+  social: [
+    "pre-event energy, glasses out on the table, a bottle visible, candles lit, the room ready to receive people",
+    "a coat thrown over the sofa, keys on the table, something open on the counter — the last few minutes before leaving"
+  ],
+  offduty: [
+    "relaxed weekend quality, a throw pulled off the sofa, something charging on the cushion, the TV still on, a snack bowl within reach",
+    "Saturday morning, curtains half-open, a cereal bowl on the coffee table, comfortable and unedited"
+  ],
+  lounge: [
+    "full rest mode, a blanket folded over the sofa, a warm drink steaming on the table, a candle lit, the room asking nothing of anyone",
+    "quiet evening, one lamp on, a good book face-down on the cushion, a herbal tea, soft and restorative"
+  ],
+  active: [
+    "gym bag near the door, a water bottle on the counter, running shoes by the entrance, the room of someone about to leave or just returned",
+    "post-workout energy, kit drying on a rack near a window, a protein shaker on the counter, trainers kicked off near the door"
+  ]
+};
+
+// ─── LIGHTING ────────────────────────────────────────────────────────────────
+const TIME_LIGHT = {
+  day: [
+    "morning daylight through the windows, soft and directional, warm colour temperature",
+    "mid-morning light, clean and even, shadows beginning to form on the floor",
+    "overcast daylight, flat and diffused, no hard shadows, a slightly grey quality to the light",
+    "bright afternoon sun coming in at an angle, patches of light on the floor and wall"
+  ],
+  night: [
+    "warm lamp light, one floor lamp and one table lamp, no overhead lighting, intimate and low",
+    "evening, a combination of kitchen under-cabinet lighting and a living room floor lamp creating layered warm light",
+    "soft warm lamps throughout, candles contributing to the light, low and atmospheric",
+    "a single warm-toned floor lamp casting a pool of light, the rest of the room in soft shadow"
+  ]
+};
+
+// ─── LOGIC ───────────────────────────────────────────────────────────────────
+function pick(arr) {
+  if (!arr || arr.length === 0) return null;
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function buildEnvironment(tier, room, region, style, time) {
+  return {
+    architecture: pick(REGIONAL[region]),
+    room: pick(ROOMS[tier][room]),
+    lighting: pick(TIME_LIGHT[time]),
+    mood: pick(STYLE_MOOD[style])
+  };
+}
+
+const ROOM_LABELS = {
+  living: 'Living room', kitchen: 'Kitchen', bedroom: 'Bedroom',
+  bathroom: 'Bathroom', overview: 'Overview'
+};
+const TIER_LABELS = {
+  budget: 'Budget', mid: 'Mid', established: 'Established',
+  affluent: 'Affluent', luxury: 'Luxury'
+};
+const REGION_LABELS = { NA: 'N. America', UK: 'UK', DE: 'Germany', NL: 'Netherlands' };
+const STYLE_LABELS = {
+  everyday: 'Everyday', elevated: 'Elevated', smart: 'Smart',
+  social: 'Social', offduty: 'Off-duty', lounge: 'Lounge', active: 'Active'
+};
+const TIME_LABELS = { day: 'Day', night: 'Night' };
+
+function toPrompt(env, room, tier, region, style, time) {
+  const roomLabel = ROOM_LABELS[room];
+  const isOverview = room === 'overview';
+  const photoStyle = isOverview
+    ? 'Interior lifestyle photography. Full apartment overview.'
+    : `Interior lifestyle photography. ${roomLabel}.`;
+  const tierRegion = `${TIER_LABELS[tier].toLowerCase()} home, ${REGIONAL[region][0].split(',')[0].toLowerCase()} context`;
+
+  return `${photoStyle} ${env.architecture}. ${env.room}. ${env.lighting}. ${env.mood}. Lived-in, not staged. No people. ${isOverview ? 'Wide establishing shot.' : 'Eye-level, 35mm equivalent, natural perspective.'}`;
+}
+
+// ─── UI ──────────────────────────────────────────────────────────────────────
+let environments = [];
+
+function generate() {
+  const tier = document.getElementById('tier').value;
+  const room = document.getElementById('room').value;
+  const region = document.getElementById('region').value;
+  const style = document.getElementById('style').value;
+  const time = document.getElementById('time').value;
+  const count = Math.min(200, Math.max(1, parseInt(document.getElementById('count').value) || 20));
+
+  environments = Array.from({ length: count }, (_, i) => {
+    const env = buildEnvironment(tier, room, region, style, time);
+    return { id: i + 1, tier, room, region, style, time, env, prompt: toPrompt(env, room, tier, region, style, time) };
+  });
+
+  document.getElementById('s-total').textContent = count;
+  document.getElementById('s-tier').textContent = TIER_LABELS[tier];
+  document.getElementById('s-room').textContent = ROOM_LABELS[room];
+  document.getElementById('s-region').textContent = REGION_LABELS[region];
+  document.getElementById('s-style').textContent = STYLE_LABELS[style];
+  document.getElementById('s-time').textContent = TIME_LABELS[time];
+  document.getElementById('stats').style.display = 'flex';
+  document.getElementById('dl-row').style.display = 'flex';
+
+  renderList();
+}
+
+function renderList() {
+  const list = document.getElementById('list');
+  list.innerHTML = environments.map(o => {
+    const preview = o.env.architecture;
+    const slots = [
+      ['architecture', o.env.architecture],
+      ['room', o.env.room],
+      ['lighting', o.env.lighting],
+      ['mood', o.env.mood]
+    ].map(([k, v]) => `<div class="slot-row"><span class="slot-name">${k}</span><span class="slot-val">${v}</span></div>`).join('');
+
+    return `<div class="env-card">
+      <div class="env-head" onclick="toggle(${o.id})">
+        <span class="env-num">#${String(o.id).padStart(2, '0')}</span>
+        <span class="env-preview">${preview}</span>
+        <span style="font-size:12px;color:#888" id="arr-${o.id}">▾</span>
+      </div>
+      <div class="env-body" id="body-${o.id}" style="display:none">
+        ${slots}
+        <div class="prompt-box">${o.prompt}</div>
+        <div class="copy-row">
+          <button class="btn btn-sm" onclick="copyOne(${o.id})">Copy prompt</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggle(id) {
+  const b = document.getElementById('body-' + id);
+  const a = document.getElementById('arr-' + id);
+  const open = b.style.display !== 'none';
+  b.style.display = open ? 'none' : 'block';
+  a.textContent = open ? '▾' : '▴';
+}
+
+function copyOne(id) {
+  const o = environments.find(x => x.id === id);
+  navigator.clipboard.writeText(o.prompt);
+}
+
+function copyAll() {
+  navigator.clipboard.writeText(environments.map(o => o.prompt).join('###'));
+}
+
+function downloadTxt() {
+  const tier = document.getElementById('tier').value;
+  const room = document.getElementById('room').value;
+  const region = document.getElementById('region').value;
+  const style = document.getElementById('style').value;
+  const time = document.getElementById('time').value;
+  const content = environments.map(o => o.prompt).join('###');
+  const blob = new Blob([content], { type: 'text/plain' });
+  const el = document.createElement('a');
+  el.href = URL.createObjectURL(blob);
+  el.download = `environments_${region}_${tier}_${room}_${style}_${time}.txt`;
+  el.click();
+}
+</script>
+</body>
+</html>
