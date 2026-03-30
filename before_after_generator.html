@@ -106,6 +106,16 @@ input[type=number] { min-width: 54px; }
     </div>
     <div class="field">
       <label>Starting state — optional (auto-derived if blank)</label>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;">
+        <button class="btn btn-sm" onclick="addChip('overweight — heavier build, fuller face, rounder midsection')">overweight</button>
+        <button class="btn btn-sm" onclick="addChip('visible wrinkles, expression lines, uneven skin texture')">wrinkles</button>
+        <button class="btn btn-sm" onclick="addChip('dull, uneven skin tone, visible redness')">dull skin</button>
+        <button class="btn btn-sm" onclick="addChip('lethargic, low energy, heavy eyelids, slouched posture')">lethargic</button>
+        <button class="btn btn-sm" onclick="addChip('flat, unstyled hair, limp or unkempt')">bad hair</button>
+        <button class="btn btn-sm" onclick="addChip('visible puffiness, slight bloating')">puffy</button>
+        <button class="btn btn-sm" onclick="addChip('pronounced dark circles under eyes')">dark circles</button>
+        <button class="btn btn-sm" onclick="addChip('visible blemishes, uneven skin')">blemishes</button>
+      </div>
       <textarea id="before-state" rows="2" placeholder="dull skin, lethargic, flat hair…"></textarea>
     </div>
   </div>
@@ -310,6 +320,24 @@ input[type=number] { min-width: 54px; }
     </div>
     <div style="margin-top:8px;">
       <button class="btn btn-sm btn-wide" onclick="mirrorScene()">↑ Same scene, different day</button>
+    </div>
+  </div>
+
+  <!-- SHOT TYPE -->
+  <div class="panel">
+    <div class="panel-title">Shot type</div>
+    <div class="field">
+      <select id="shot-type">
+        <option value="auto" selected>— Auto (derived from effect) —</option>
+        <option value="mirror">Mirror</option>
+        <option value="selfie">Selfie</option>
+        <option value="fixed">Fixed / Tripod</option>
+        <option value="beauty">Beauty shot</option>
+        <option value="close_crop">Close crop</option>
+        <option value="candid">Candid</option>
+        <option value="side_profile">Side profile</option>
+        <option value="overhead">Overhead</option>
+      </select>
     </div>
   </div>
 
@@ -657,21 +685,66 @@ function locStrBefore(loc, room) {
 }
 
 function locStrAfter(loc, room, sameScene) {
-  if (room === 'car')      return `LOCATION: car interior${sameScene ? ' — different day' : ''}. ${loc.roomDesc}. ${loc.light}. Not staged.`;
-  if (room === 'office')   return `LOCATION: office${sameScene ? ' — different day' : ''}. ${loc.roomDesc}. ${loc.light}. Not staged.`;
-  if (room === 'outdoors') return `LOCATION: outdoors${sameScene ? ' — different day' : ''}. ${loc.roomDesc}. ${loc.light}. Candid, not staged.`;
+  if (room === 'car')      return `LOCATION: car interior${sameScene ? ' — different day, same vehicle' : ''}. ${loc.roomDesc}. ${loc.light}. Not staged.`;
+  if (room === 'office')   return `LOCATION: office${sameScene ? ' — different day, same space' : ''}. ${loc.roomDesc}. ${loc.light}. Not staged.`;
+  if (room === 'outdoors') return `LOCATION: outdoors${sameScene ? ' — different day, same spot' : ''}. ${loc.roomDesc}. ${loc.light}. Candid, not staged.`;
   const labels = { living:'living room', kitchen:'kitchen', bedroom:'bedroom', bathroom:'bathroom', overview:'apartment interior' };
-  if (sameScene) {
-    return `LOCATION: same ${labels[room]}, different day. ${loc.tidiStr} ${loc.light}. Not staged.`;
-  }
   const archPart = trimFirst(loc.arch, 2);
   const roomPart = loc.roomDesc.split(',').slice(0,3).join(',').trim();
+  if (sameScene) {
+    return `LOCATION: same ${labels[room]}, different day — same space, same interior. ${archPart}. ${roomPart}. ${loc.tidiStr} ${loc.light}. Not staged.`;
+  }
   return `LOCATION: ${labels[room]}, ${archPart}. ${roomPart}. ${loc.tidiStr} ${loc.light}. Not staged.`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EFFECT PARSER
 // ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// SHOT TYPES
+// ─────────────────────────────────────────────────────────────────────────────
+const SHOT_TYPE = {
+  auto: null,
+  mirror: {
+    before: 'reflected in mirror, upper body and face visible in reflection — candid self-assessment, slight distance from mirror, no camera or phone visible in frame, low energy in posture',
+    after:  'reflected in same mirror, same framing — upright, visibly pleased with reflection, no camera or phone visible in frame'
+  },
+  selfie: {
+    before: 'selfie angle, phone held at arm\'s length slightly above eye level, front-camera perspective, natural unstaged expression, low energy',
+    after:  'selfie angle, same framing and height as before, upright and confident, slight natural smile'
+  },
+  fixed: {
+    before: 'mid-shot, camera placed on stable surface at distance, person unaware of framing — candid, natural posture, no camera props visible',
+    after:  'same fixed angle and distance as before, different day — person relaxed, facing frame naturally'
+  },
+  beauty: {
+    before: 'close portrait, flat even frontal lighting, clean neutral background — intentionally unglamorous baseline, no ring light, no styling',
+    after:  'close portrait, ring light setup, high-key beauty lighting, skin luminous and flawless, face fills frame — intentionally over-produced and flattering, exaggerated improvement'
+  },
+  close_crop: {
+    before: 'extreme close crop on face — direct neutral lighting, no makeup, concerns visible at close range, unflattering angle',
+    after:  'extreme close crop, same tight framing and angle — skin visibly improved at close range, same focal area'
+  },
+  candid: {
+    before: 'candid mid-action in environment, subject not posing, natural unstaged movement, low energy visible in body language',
+    after:  'candid in same space, natural unstaged movement, different day — energy and presence visibly higher'
+  },
+  side_profile: {
+    before: '90-degree side profile, face and body in clean profile view, natural lighting, candid expression, relaxed posture',
+    after:  'same 90-degree side profile, same side of face — transformation visible from the side, upright posture'
+  },
+  overhead: {
+    before: 'overhead angle, camera directly above, subject looking upward toward lens, lying down or seated below camera, face fills upper portion of frame, low energy expression',
+    after:  'same overhead angle and framing, subject looking upward — visibly transformed from above, relaxed and open expression'
+  }
+};
+
+function derivePoseFromShot(shotType, effectText) {
+  if (!shotType || shotType === 'auto') return derivePoses(effectText);
+  const s = SHOT_TYPE[shotType];
+  return s ? { before: s.before, after: s.after } : derivePoses(effectText);
+}
+
 function deriveBeforeState(effectText) {
   const t = effectText.toLowerCase();
   const parts = [];
@@ -824,6 +897,11 @@ function genWardCards(which) {
   }
 }
 
+function addChip(text) {
+  const el = document.getElementById('before-state');
+  el.value = el.value ? el.value.trimEnd() + ', ' + text : text;
+}
+
 function mirrorScene() {
   const beforeRoom = document.getElementById('before-room').value;
   const beforeTier = document.getElementById('before-tier').value;
@@ -874,12 +952,17 @@ function generate() {
 
   // Location
   const locBefore = buildLocation(beforeTier, beforeRoom, region, beforeTime, beforeTidi);
-  const locAfter  = buildLocation(afterTier, afterRoom, region, afterTime, afterTidi);
+  const locAfterRaw = buildLocation(afterTier, afterRoom, region, afterTime, afterTidi);
+  // Same scene: lock arch + roomDesc from BEFORE so the model gets the identical room. Only light + tidiness change.
+  const locAfter = sameScene
+    ? { arch: locBefore.arch, roomDesc: locBefore.roomDesc, light: locAfterRaw.light, tidiStr: locAfterRaw.tidiStr }
+    : locAfterRaw;
 
   // States
   const beforeState = beforeOverride || deriveBeforeState(effectText);
   const afterState  = effectText;
-  const { before: poseBefore, after: poseAfter } = derivePoses(effectText);
+  const shotType = document.getElementById('shot-type').value;
+  const { before: poseBefore, after: poseAfter } = derivePoseFromShot(shotType, effectText);
   const refDeviation = deriveReferenceDeviation(effectText);
 
   // Reference
