@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Before / After Generator</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #111; padding: 2rem; }
+.layout { display: grid; grid-template-columns: 380px 1fr; gap: 2rem; max-width: 1200px; margin: 0 auto; align-items: start; }
+.header { margin-bottom: 1.5rem; }
+.header h1 { font-size: 18px; font-weight: 500; }
+.header p { font-size: 13px; color: #666; margin-top: 4px; }
+
+.panel { border: 0.5px solid #e0e0e0; border-radius: 12px; padding: 14px; margin-bottom: 10px; }
+.panel-title { font-size: 10px; font-weight: 600; color: #aaa; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 0.5px solid #f0f0f0; }
+.panel.before-bar { border-left: 3px solid #ccc; }
+.panel.after-bar  { border-left: 3px solid #111; }
+
+.field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.field:last-child { margin-bottom: 0; }
+.field label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
+select, input[type=number], input[type=text], input[type=url] {
+  height: 32px; padding: 0 9px; border: 0.5px solid #ccc; border-radius: 7px;
+  background: #fff; color: #111; font-size: 13px; font-family: inherit; width: 100%; }
+textarea {
+  width: 100%; padding: 9px 10px; border: 0.5px solid #ccc; border-radius: 7px;
+  background: #fff; color: #111; font-size: 13px; font-family: inherit; resize: vertical; line-height: 1.5; }
+.field-row { display: flex; gap: 8px; }
+.field-row .field { flex: 1; min-width: 0; }
+input[type=number] { min-width: 54px; }
+
+.btn { height: 32px; padding: 0 14px; border: 0.5px solid #ccc; border-radius: 7px; background: #fff; color: #111; font-size: 13px; font-family: inherit; cursor: pointer; white-space: nowrap; }
+.btn:hover { background: #f5f5f5; }
+.btn-primary { background: #111; color: #fff; border-color: #111; width: 100%; height: 38px; font-size: 13px; margin-top: 4px; }
+.btn-primary:hover { opacity: 0.85; }
+.btn-sm { height: 28px; padding: 0 10px; font-size: 12px; }
+.btn-dark { background: #111; color: #fff; border-color: #111; }
+.btn-dark:hover { opacity: 0.85; }
+.btn-wide { width: 100%; }
+
+.upload-zone { border: 0.5px dashed #ccc; border-radius: 9px; padding: 20px; text-align: center; cursor: pointer; position: relative; transition: border-color 0.15s, background 0.15s; }
+.upload-zone:hover { border-color: #111; background: #fafafa; }
+.upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.upload-zone-text { font-size: 13px; color: #888; pointer-events: none; }
+.upload-zone-text span { color: #111; }
+.img-preview { width: 100%; max-height: 200px; object-fit: cover; border-radius: 8px; margin-top: 10px; display: none; }
+.or-row { text-align: center; font-size: 11px; color: #bbb; margin: 8px 0; }
+
+.ward-toggle { display: flex; border: 0.5px solid #ddd; border-radius: 7px; overflow: hidden; margin-bottom: 10px; }
+.ward-btn { flex: 1; height: 30px; font-size: 12px; font-family: inherit; border: none; background: #fff; color: #888; cursor: pointer; transition: background 0.1s, color 0.1s; }
+.ward-btn.active { background: #111; color: #fff; }
+
+.right-col { position: sticky; top: 2rem; }
+.out-label { font-size: 10px; font-weight: 600; color: #aaa; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+.out-label-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.out-label-dot.before { background: #ccc; }
+.out-label-dot.after  { background: #111; }
+.out-box { width: 100%; min-height: 260px; padding: 12px; border: 0.5px solid #e0e0e0; border-radius: 9px; font-size: 11.5px; font-family: 'SF Mono', 'Fira Code', monospace; color: #333; line-height: 1.85; resize: vertical; background: #fafafa; }
+.out-box:focus { outline: none; border-color: #bbb; }
+.out-actions { display: flex; gap: 8px; margin: 8px 0 18px; }
+.divider-out { height: 0.5px; background: #eee; margin: 16px 0; }
+</style>
+</head>
+<body>
+<div style="max-width:1200px;margin:0 auto;">
+
+<div class="header">
+  <h1>Before / After Generator</h1>
+  <p>Reference image + desired effect → paired BEFORE / AFTER prompt blocks</p>
+</div>
+
+<div class="layout">
+
+<!-- ─── LEFT — Controls ─── -->
+<div class="left">
+
+  <!-- REFERENCE -->
+  <div class="panel">
+    <div class="panel-title">Reference image</div>
+    <div class="upload-zone" id="upload-zone">
+      <input type="file" id="ref-file" accept="image/*" onchange="handleFile(this)">
+      <div class="upload-zone-text">Drop image here or <span>click to upload</span></div>
+    </div>
+    <img class="img-preview" id="img-preview" alt="Reference">
+    <div class="or-row">or</div>
+    <div class="field">
+      <label>Image URL</label>
+      <input type="url" id="ref-url" placeholder="https://…" oninput="handleUrl(this.value)">
+    </div>
+  </div>
+
+  <!-- EFFECT -->
+  <div class="panel">
+    <div class="panel-title">Transformation</div>
+    <div class="field">
+      <label>Desired effect — after state</label>
+      <textarea id="effect" rows="3" placeholder="smoother skin, more energetic, tidier hair, 20 pounds less, reduced redness…"></textarea>
+    </div>
+    <div class="field">
+      <label>Starting state — optional (auto-derived if blank)</label>
+      <textarea id="before-state" rows="2" placeholder="dull skin, lethargic, flat hair…"></textarea>
+    </div>
+  </div>
+
+  <!-- SUBJECT CONTEXT -->
+  <div class="panel">
+    <div class="panel-title">Subject context — wardrobe matching</div>
+    <div class="field-row">
+      <div class="field">
+        <label>Gender</label>
+        <select id="gender">
+          <option value="F" selected>Women</option>
+          <option value="M">Men</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Region</label>
+        <select id="region">
+          <option value="random">— Random —</option>
+          <option value="NA">N. America</option>
+          <option value="UK">UK</option>
+          <option value="DE" selected>Germany</option>
+          <option value="NL">Netherlands</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>Age range</label>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <input type="number" id="age-min" value="28" min="18" max="90" style="width:58px;">
+        <span style="font-size:12px;color:#aaa;">–</span>
+        <input type="number" id="age-max" value="42" min="18" max="90" style="width:58px;">
+      </div>
+    </div>
+  </div>
+
+  <!-- WARDROBE MODE -->
+  <div class="panel">
+    <div class="panel-title">Wardrobe</div>
+    <div class="ward-toggle">
+      <button class="ward-btn active" id="ward-same-btn" onclick="setWardMode('same')">Same outfit both days</button>
+      <button class="ward-btn" id="ward-diff-btn" onclick="setWardMode('diff')">Different outfits</button>
+    </div>
+    <div id="ward-same-controls">
+      <div class="field">
+        <label>Style</label>
+        <select id="style-shared">
+          <option value="random">— Random —</option>
+          <option value="everyday" selected>Everyday</option>
+          <option value="elevated">Elevated</option>
+          <option value="smart">Smart</option>
+          <option value="social">Social</option>
+          <option value="offduty">Off-duty</option>
+          <option value="lounge">Lounge</option>
+          <option value="active">Active</option>
+        </select>
+      </div>
+    </div>
+    <div id="ward-diff-controls" style="display:none;">
+      <div class="field-row">
+        <div class="field">
+          <label>Before style</label>
+          <select id="style-before">
+            <option value="random">— Random —</option>
+            <option value="everyday">Everyday</option>
+            <option value="elevated">Elevated</option>
+            <option value="smart">Smart</option>
+            <option value="social">Social</option>
+            <option value="offduty">Off-duty</option>
+            <option value="lounge" selected>Lounge</option>
+            <option value="active">Active</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>After style</label>
+          <select id="style-after">
+            <option value="random">— Random —</option>
+            <option value="everyday" selected>Everyday</option>
+            <option value="elevated">Elevated</option>
+            <option value="smart">Smart</option>
+            <option value="social">Social</option>
+            <option value="offduty">Off-duty</option>
+            <option value="lounge">Lounge</option>
+            <option value="active">Active</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BEFORE ENVIRONMENT -->
+  <div class="panel before-bar">
+    <div class="panel-title">Before — environment</div>
+    <div class="field-row">
+      <div class="field">
+        <label>Scene</label>
+        <select id="before-room">
+          <option value="random">— Random —</option>
+          <option value="living" selected>Living Room</option>
+          <option value="kitchen">Kitchen</option>
+          <option value="bedroom">Bedroom</option>
+          <option value="bathroom">Bathroom</option>
+          <option value="overview">Overview</option>
+          <option value="car">Car Interior</option>
+          <option value="office">Office</option>
+          <option value="outdoors">Outdoors</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Tier</label>
+        <select id="before-tier">
+          <option value="random">— Random —</option>
+          <option value="budget">Budget</option>
+          <option value="mid" selected>Mid</option>
+          <option value="established">Established</option>
+          <option value="affluent">Affluent</option>
+          <option value="luxury">Luxury</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Time</label>
+        <select id="before-time">
+          <option value="day" selected>Day</option>
+          <option value="night">Night</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Space</label>
+        <select id="before-tidiness">
+          <option value="random">— Random —</option>
+          <option value="pristine">Pristine</option>
+          <option value="tidy">Tidy</option>
+          <option value="lived" selected>Lived-in</option>
+          <option value="messy">Messy</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- AFTER ENVIRONMENT -->
+  <div class="panel after-bar">
+    <div class="panel-title">After — environment</div>
+    <div class="field-row">
+      <div class="field">
+        <label>Scene</label>
+        <select id="after-room">
+          <option value="random">— Random —</option>
+          <option value="living" selected>Living Room</option>
+          <option value="kitchen">Kitchen</option>
+          <option value="bedroom">Bedroom</option>
+          <option value="bathroom">Bathroom</option>
+          <option value="overview">Overview</option>
+          <option value="car">Car Interior</option>
+          <option value="office">Office</option>
+          <option value="outdoors">Outdoors</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Tier</label>
+        <select id="after-tier">
+          <option value="random">— Random —</option>
+          <option value="budget">Budget</option>
+          <option value="mid" selected>Mid</option>
+          <option value="established">Established</option>
+          <option value="affluent">Affluent</option>
+          <option value="luxury">Luxury</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Time</label>
+        <select id="after-time">
+          <option value="day">Day</option>
+          <option value="night" selected>Night</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Space</label>
+        <select id="after-tidiness">
+          <option value="random">— Random —</option>
+          <option value="pristine">Pristine</option>
+          <option value="tidy" selected>Tidy</option>
+          <option value="lived">Lived-in</option>
+          <option value="messy">Messy</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top:8px;">
+      <button class="btn btn-sm btn-wide" onclick="mirrorScene()">↑ Same scene, different day</button>
+    </div>
+  </div>
+
+  <button class="btn btn-primary" onclick="generate()">Generate before / after</button>
+
+</div><!-- /left -->
+
+<!-- ─── RIGHT — Output ─── -->
+<div class="right-col">
+
+  <div>
+    <div class="out-label"><span class="out-label-dot before"></span>Before</div>
+    <textarea class="out-box" id="out-before" readonly placeholder="Output appears here after generating…"></textarea>
+    <div class="out-actions">
+      <button class="btn btn-sm btn-dark" onclick="copyOut('before')">Copy before</button>
+    </div>
+  </div>
+
+  <div class="divider-out"></div>
+
+  <div>
+    <div class="out-label"><span class="out-label-dot after"></span>After</div>
+    <textarea class="out-box" id="out-after" readonly placeholder="Output appears here after generating…"></textarea>
+    <div class="out-actions">
+      <button class="btn btn-sm btn-dark" onclick="copyOut('after')">Copy after</button>
+      <button class="btn btn-sm" onclick="copyBoth()">Copy both</button>
+    </div>
+  </div>
+
+</div><!-- /right -->
+</div><!-- /layout -->
+</div><!-- /wrapper -->
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// UTILITIES
+// ─────────────────────────────────────────────────────────────────────────────
+function pick(arr) { if (!arr || !arr.length) return ''; return arr[Math.floor(Math.random() * arr.length)]; }
+function pickAge(lo, hi) {
+  lo = parseInt(lo); hi = parseInt(hi);
+  if (lo > hi) [lo, hi] = [hi, lo];
+  return Math.floor(Math.random() * (hi - lo + 1)) + lo;
+}
+function ageToKey(age) {
+  if (age <= 25) return '18-25';
+  if (age <= 35) return '25-35';
+  if (age <= 50) return '35-50';
+  if (age <= 60) return '45-60';
+  return '65+';
+}
+function trimFirst(str, n) { return str.split(',').slice(0,n).join(',').trim(); }
+function resolve(val, options) { return val === 'random' ? pick(options) : val; }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WARDROBE DATA
+// ─────────────────────────────────────────────────────────────────────────────
+const TAXONOMY = {
+  F: {
+    "18-25": {
+      top: ["white cropped baby tee, fitted, short sleeve","oversized graphic tee, dropped shoulders, slightly cropped","ribbed cami top in sage green, thin straps","shrunken crew-neck knit in butter yellow","tie-front blouse in white cotton, cropped","long-sleeve crop top in chocolate brown, fitted","fitted turtleneck in taupe, cropped","lace-trim cami in ecru, relaxed"],
+      bottom: ["low-rise wide-leg jeans in light blue wash","baggy cargo trousers in khaki with side pockets","low-rise straight-leg jeans, raw hem","wide-leg tracksuit bottoms in grey marl","low-rise flare jeans in medium wash","black wide-leg linen trousers, casual","denim mini skirt in mid wash, frayed hem","high-waist ribbed leggings in slate blue"],
+      outer: ["cropped denim jacket in light wash","zip-up hoodie in washed grey, slightly oversized","shacket in brown flannel plaid","cropped puffer jacket in sage green","oversized cardigan in cream, chunky knit","fitted track jacket in black with white stripe"],
+      shoes: ["platform sneakers in white, chunky sole","chunky lug-sole ankle boots in black","strappy flat sandals in tan leather","classic ballet flats in black","white low-profile canvas sneakers"],
+      bag: ["mini shoulder bag in black with chain strap","small crescent bag in tan leather","canvas tote with simple graphic print","bucket bag in cognac faux leather"],
+      accessory: ["thin gold hoop earrings, medium size","layered thin gold necklaces, two or three","small butterfly hair clips in silver","black baseball cap, worn forward","chunky silver ring stack"]
+    },
+    "25-35": {
+      top: ["fitted ribbed crew-neck long-sleeve in washed white","sheer linen button-up, half-tucked, loose collar","fitted mock-neck top in chocolate brown","white fitted scoop-neck t-shirt","off-shoulder knit top in dusty rose","cropped zip-up hoodie in heather grey","sleeveless ribbed tank in sage green","relaxed linen cami, thin straps, ecru","draped cowl-neck top in dusty mauve"],
+      bottom: ["wide-leg mid-rise jeans in light stone wash","straight-leg dark indigo denim, ankle length","tailored wide-leg trousers in charcoal grey","pleated midi skirt in cream satin","relaxed linen trousers in oatmeal","black stretch flare trousers","denim midi skirt, raw hem, medium wash","wide-leg corduroy trousers in burnt orange"],
+      outer: ["oversized blazer in off-white, slightly boxy","washed denim jacket, relaxed fit","long camel wool coat, straight cut","black leather biker jacket, minimal hardware","zip-up fleece in moss green","short trench coat in beige","chunky knit cardigan in rust orange"],
+      shoes: ["white low-profile leather sneakers, minimal branding","black pointed-toe ankle boots, block heel","strappy flat sandals in brown leather","chunky white trainers with coloured sole","black ballet flats, round toe","knee-high black leather boots, flat"],
+      bag: ["small structured tote in tan leather","black nylon crossbody, zip front pocket","slouchy hobo bag in camel leather","canvas tote with single screenprint","mini shoulder bag in off-white"],
+      accessory: ["thin gold hoop earrings","stacked silver rings, two or three","simple black baseball cap","long pendant necklace, gold","small stud earrings, pearl","tortoiseshell sunglasses, oversized"]
+    },
+    "35-50": {
+      top: ["fitted turtleneck in off-white cotton","relaxed linen shirt in sky blue, collar open","block-colour round-neck knit in forest green","draped wrap top in dusty mauve","collarless button-up in pale yellow, boxy","long-sleeve fitted top in navy, thin fabric","fine-knit v-neck in burgundy","silk blouse in champagne, draped front","classic striped breton top, navy and cream, three-quarter sleeve","fitted mock-neck in slate grey"],
+      bottom: ["relaxed wide-leg linen trousers in sand","straight-leg mid-wash jeans, clean finish","tailored slim trousers in olive","a-line midi skirt in dark plum wool","straight-cut black trousers, high waist","dark grey slim jeans, ankle crop","wide-leg corduroy trousers in tan","pleated front trousers in light grey"],
+      outer: ["structured blazer in camel, single button","long dark navy wool coat, straight cut","oversized knit cardigan in oatmeal, open front","belted trench coat in stone","soft leather jacket in cognac, minimal zip detail","quilted vest in olive, zip-front"],
+      shoes: ["clean white low-profile leather sneakers","tan leather loafers, penny detail","ankle boots in dark brown leather, low block heel","simple black leather mules, low heel","suede chelsea boots in tan","flat leather sandals in cognac"],
+      bag: ["small structured tote in warm tan leather, top-handle","large unstructured leather tote in camel","black leather handbag, shoulder strap","woven leather tote in cognac","medium crossbody in warm brown leather"],
+      accessory: ["thin gold hoop earrings, medium size","simple gold stud earrings","delicate layered gold necklaces","silk scarf tied loosely at neck","classic watch with leather strap","small pearl drop earrings"]
+    },
+    "45-60": {
+      top: ["classic white button-up shirt, fitted, tucked","fine merino v-neck in slate blue","relaxed cowl-neck top in warm grey","striped breton top, navy and white, three-quarter sleeve","silk blouse in champagne, draped front","fitted crew-neck knit in deep teal","long-sleeve linen top in terracotta","cashmere-blend roll-neck in camel","fine-knit v-neck in burgundy","classic printed silk blouse in muted floral"],
+      bottom: ["straight-leg dark navy trousers, pressed crease","wide-leg linen trousers in warm white","classic straight-leg jeans in dark indigo","below-knee a-line skirt in dark green wool","tailored slim trousers in charcoal","midi pleated skirt in warm rust","wide-leg wool trousers in camel"],
+      outer: ["longline blazer in deep navy, two-button","belted wool coat in camel, knee length","classic trench coat in beige","structured blazer in herringbone grey","open-front duster cardigan in oatmeal","dark charcoal wool wrap coat"],
+      shoes: ["tan leather loafers, classic penny","black leather block-heel ankle boots","low-heel leather court shoes in nude","white leather trainers, clean minimal","flat leather ballet flats in cognac","suede chelsea boots in dark brown"],
+      bag: ["structured leather handbag in cognac, top handles","classic leather tote in dark navy","medium leather shoulder bag in warm tan","simple black leather satchel"],
+      accessory: ["classic gold stud earrings","simple gold chain necklace","silk scarf in muted print, loosely knotted","classic watch, silver or gold strap","drop earrings in gold, understated","pearl stud earrings"]
+    },
+    "65+": {
+      top: ["classic white button-up shirt, well-pressed","fine merino crew-neck in pale lavender","printed silk blouse in subtle floral, long sleeve","soft cotton polo neck in winter white","linen blouse in soft peach, relaxed fit","textured knit top in warm oatmeal","fine wool v-neck in rose taupe"],
+      bottom: ["classic straight-leg trousers in charcoal, well-pressed","a-line skirt in soft navy, below-knee","pull-on elastic-waist trousers in camel jersey","straight-leg chinos in stone, classic","midi pleated skirt in soft rose taupe","classic wide-leg trousers in warm cream"],
+      outer: ["classic longline blazer in navy","belted wool coat in camel, knee length","longline open-front cardigan in warm oatmeal","classic waterfall cardigan in slate blue","quilted jacket in dark navy, zip-front"],
+      shoes: ["classic leather loafers in tan","low-heel court shoe in nude leather","supportive leather trainers in white, wider fit","flat leather ballet flats in cognac"],
+      bag: ["classic leather handbag in cognac, top handle","structured tote in dark navy leather","simple canvas shopper in natural"],
+      accessory: ["classic pearl stud earrings","simple gold chain necklace","silk scarf in muted floral, loosely tied","classic watch with leather strap","reading glasses in tortoiseshell frames"]
+    }
+  },
+  M: {
+    "18-25": {
+      top: ["oversized graphic tee in washed black, slightly cropped","ribbed short-sleeve polo in washed burgundy","boxy crew-neck tee in heather grey, minimal","long-sleeve waffle-knit top in off-white","quarter-zip fleece in dark green, casual fit","loose linen shirt in ecru, half-unbuttoned","boxy short-sleeve shirt in pale blue, open collar"],
+      bottom: ["straight-leg jeans in dark indigo, raw hem","wide-leg cargo trousers in khaki with side pockets","relaxed carpenter jeans in light blue wash","jogger trousers in charcoal grey, elasticated ankle","wide-leg chinos in stone, relaxed fit","baggy track pants in black with side stripe"],
+      outer: ["zip-up hoodie in washed grey, slightly oversized","cropped bomber jacket in olive nylon","overshirt in brown corduroy, worn open","heavyweight zip-up sweatshirt in dark navy","washed denim jacket, relaxed, medium blue","short puffer jacket in black, light fill"],
+      shoes: ["chunky white trainers, cushioned sole","classic low-top canvas sneakers in black","retro-style trainers in white and blue","plain white low-profile sneakers","brown leather lace-up boots, casual"],
+      bag: ["canvas tote in natural, simple graphic print","small crossbody in black nylon, zip closure","simple backpack in washed black canvas"],
+      accessory: ["simple silver chain, thin","black baseball cap, worn forward","beaded bracelet in earthy tones","simple rubber-strap sport watch"]
+    },
+    "25-35": {
+      top: ["fitted crew-neck tee in navy, quality cotton","relaxed linen shirt in off-white, collar open","slim-fit merino polo in dark green","fitted mock-neck long-sleeve in charcoal","quality short-sleeve Oxford in pale blue, slightly tucked","ribbed crew-neck in rust orange, long sleeve","relaxed button-up in soft olive linen, half-tucked"],
+      bottom: ["straight-leg dark indigo jeans, clean finish","tailored chinos in warm tan, slim fit","wide-leg trousers in charcoal linen","relaxed straight-leg jeans in light grey wash","slim-fit trousers in olive, five-pocket"],
+      outer: ["unstructured blazer in olive linen, relaxed","zip-up track jacket in dark navy with white stripe","waxed cotton overshirt in dark green, worn open","cropped leather jacket in tan, minimal hardware","zip-up hoodie in charcoal, quality fleece","short trench coat in beige, unbelted"],
+      shoes: ["white leather low-profile sneakers, minimal branding","brown leather Chelsea boots, classic","tan suede loafers, penny detail","leather lace-up boots in dark brown","minimal leather trainers in off-white"],
+      bag: ["leather tote in dark brown, simple handles","small black nylon crossbody, minimal","canvas backpack in olive, quality construction"],
+      accessory: ["simple leather strap watch in brown","thin silver ring, plain band","simple beaded bracelet in earthy tones","wire-frame glasses, thin round"]
+    },
+    "35-50": {
+      top: ["relaxed linen shirt in sky blue, collar open, half-tucked","block-colour crew-neck knit in forest green","classic Oxford in pale grey, tucked","fitted v-neck in burgundy, fine merino","quality tee in navy, structured fabric, boxy","relaxed button-up in soft olive, cuffs rolled","fine-knit roll-neck in dark charcoal"],
+      bottom: ["straight-leg mid-wash jeans, clean finish","tailored slim trousers in olive","relaxed chinos in stone, classic five-pocket","dark grey slim jeans, ankle crop","wide-leg linen trousers in sand","classic straight-leg jeans in dark indigo"],
+      outer: ["structured blazer in camel, single button","leather jacket in dark cognac, minimal zips","long wool coat in dark navy","waxed cotton field jacket in olive","quilted jacket in dark green","longline blazer in herringbone grey"],
+      shoes: ["tan leather loafers, minimal detail","leather Derby shoes in dark brown","clean white leather sneakers","Chelsea boots in dark cognac","dark brown leather lace-up boots"],
+      bag: ["leather tote bag in dark brown, simple handles","slim leather briefcase in cognac","minimal canvas backpack in navy"],
+      accessory: ["classic leather strap watch in brown","simple gold or silver wedding band","leather belt in cognac","silver wristwatch, simple dial"]
+    },
+    "45-60": {
+      top: ["classic button-up in pale blue, well-pressed","fine merino polo in navy","fitted v-neck knit in camel","linen shirt in off-white, collar open","classic crew-neck in charcoal","striped button-up in navy and white","fine-knit roll-neck in dark green","quality tee in navy, structured fabric"],
+      bottom: ["classic tailored trousers in charcoal","straight-leg dark indigo jeans, pressed","smart chinos in stone, classic cut","wide-leg linen trousers in cream","corduroy trousers in brown","classic trousers in olive, five-pocket"],
+      outer: ["classic blazer in navy, two-button","long wool overcoat in camel","leather jacket in dark cognac","quilted Barbour-style jacket in olive","longline cardigan in charcoal, open front"],
+      shoes: ["tan leather loafers, classic","Derby shoes in dark brown leather","clean leather trainers in white","Chelsea boots in dark navy suede","dark brown leather brogues"],
+      bag: ["classic leather briefcase in tan","leather tote in dark brown","minimal canvas bag in navy"],
+      accessory: ["classic watch with metal bracelet","leather belt in cognac","simple gold or silver signet ring","reading glasses in classic frames","flat cap in herringbone tweed"]
+    },
+    "65+": {
+      top: ["classic button-up in pale blue, neatly pressed","fine merino v-neck in warm grey","polo shirt in navy, long sleeve","linen shirt in cream, relaxed","classic crew-neck knit in oatmeal","soft flannel shirt in muted plaid","classic v-neck in dark burgundy"],
+      bottom: ["classic straight-leg trousers in charcoal, pressed","straight-leg chinos in stone","classic fit jeans in dark navy","corduroy trousers in warm brown","pull-on elastic-waist trousers in charcoal jersey"],
+      outer: ["classic wool blazer in dark navy","long camel overcoat, classic cut","quilted vest in navy, zip-front","lightweight zip-up jacket in grey","longline cardigan in oatmeal"],
+      shoes: ["classic leather brogues in dark brown","leather loafers in tan","supportive white leather sneakers, wider fit","classic Derby shoes in black leather"],
+      bag: ["classic leather briefcase in cognac","simple canvas tote in navy"],
+      accessory: ["classic wristwatch, leather strap","leather belt in dark brown","flat cap in herringbone tweed","reading glasses in tortoiseshell","simple gold signet ring"]
+    }
+  }
+};
+
+const REGIONAL_WARD = {
+  NA: {
+    F: { top:["oversized college sweatshirt in grey marl","plaid flannel shirt, worn open over tee"], bottom:["high-waist athletic leggings in black","relaxed boyfriend jeans in light wash"], outer:["oversized puffer jacket in olive","zip-up hoodie in burgundy"], shoes:["classic white retro trainers, cushioned sole"], bag:["canvas tote with collegiate print"], accessory:["baseball cap in navy","scrunchie in tie-dye cotton"] },
+    M: { top:["college sweatshirt in grey marl","plaid flannel shirt, open over white tee"], bottom:["relaxed carpenter jeans in light wash"], outer:["classic varsity jacket in navy and white","zip-up hoodie in forest green"], shoes:["classic white retro trainers, cushioned sole"], bag:["large canvas backpack in grey"], accessory:["baseball cap in team colour","sport watch in black rubber"] }
+  },
+  UK: {
+    F: { top:["fine-knit roll-neck in mustard yellow","classic striped top in ecru and navy"], bottom:["wide-leg trousers in dark olive, tailored","relaxed A-line skirt in rust corduroy"], outer:["longline mac in dark olive","oversized teddy coat in oatmeal"], shoes:["simple leather Chelsea boots in black"], bag:["structured leather tote in tan"], accessory:["simple silver hoop earrings","thin silver chain, minimal"] },
+    M: { top:["classic striped top, navy and white","fitted roll-neck in forest green"], bottom:["slim chinos in olive, smart casual","relaxed straight-leg jeans in dark wash"], outer:["wool overcoat in dark charcoal","waxed cotton jacket in dark green"], shoes:["brown leather brogues","clean white canvas trainers"], bag:["canvas holdall in navy"], accessory:["simple leather watch","flat cap in grey tweed"] }
+  },
+  DE: {
+    F: { top:["fine linen blouse in pale terracotta","classic fitted crew-neck in forest green"], bottom:["functional wide-leg trousers in dark olive, tapered","straight-leg dark denim, relaxed fit"], outer:["minimal puffer vest in light grey","relaxed trench in sand, unbelted"], shoes:["clean leather sneakers in white","flat leather chelsea boots in black"], bag:["minimalist leather backpack in tan"], accessory:["simple silver stud earrings","thin silver ring, minimal"] },
+    M: { top:["minimal linen shirt in pale terracotta","fine-stripe Oxford in light blue"], bottom:["tapered chinos in warm grey","functional wide-leg trousers in olive"], outer:["waterproof cycling jacket in bright orange","minimal puffer in light grey"], shoes:["clean white leather sneakers","minimal leather Chelsea boots in black"], bag:["minimalist black leather backpack"], accessory:["simple silver watch","thin wire-frame glasses"] }
+  },
+  NL: {
+    F: { top:["fitted fine-stripe shirt in blue and white","relaxed linen blouse in light terracotta"], bottom:["wide-leg linen trousers in off-white","functional trousers in dark olive, tapered"], outer:["waterproof rain jacket in cobalt blue","relaxed trench in sand, unbelted"], shoes:["clean leather sneakers in white"], bag:["minimalist leather backpack in tan"], accessory:["simple silver stud earrings","thin silver ring, minimal"] },
+    M: { top:["minimal linen shirt in pale terracotta","fine-stripe Oxford in light blue"], bottom:["tapered chinos in warm grey","functional wide-leg trousers in olive"], outer:["waterproof cycling jacket in bright orange","minimal puffer in light grey"], shoes:["clean white leather sneakers"], bag:["minimalist black leather backpack"], accessory:["simple silver watch","thin wire-frame glasses"] }
+  }
+};
+
+const STYLE_WARD = {
+  lounge: {
+    F: { top:["oversized hoodie in heather grey, worn and soft","relaxed crewneck sweatshirt in dusty rose","slouchy ribbed top in cream, long-sleeve","oversized long-sleeve tee in washed sage, faded"], bottom:["wide-leg jogger trousers in charcoal, elasticated waist","ribbed lounge trousers in oatmeal, wide-leg","soft flare trousers in dusty grey"], outer:["oversized open-front cardigan in ivory, chunky knit"], shoes:["slip-on canvas shoes in natural","chunky clogs in tan suede"], accessory:["simple cotton scrunchie, worn on wrist"] },
+    M: { top:["oversized hoodie in charcoal, well-worn soft","relaxed crewneck sweatshirt in slate blue, faded","long-sleeve waffle-knit in off-white"], bottom:["wide-leg jogger in dark navy, elasticated waist","pull-on sweatpants in heather grey"], outer:["open-front zip-up hoodie in heather grey"], shoes:["slip-on canvas shoes in white","chunky slides in black"], accessory:["simple rubber-strap watch"] }
+  },
+  active: {
+    F: { top:["fitted sports top in black, racerback","fitted zip-up running top in dark navy","lightweight performance tee in olive"], bottom:["high-waist leggings in black, full length","7/8 length leggings in slate grey","running shorts in black, mid-thigh"], outer:["lightweight running jacket in grey","zip-up athletic hoodie in navy, minimal"], shoes:["running shoes in white and black, cushioned","cross-training sneakers in grey"], bag:["gym duffel in black nylon"], accessory:["sport watch in black rubber strap"] },
+    M: { top:["fitted athletic tee in black, performance fabric","compression top in grey, long-sleeve","lightweight performance polo in slate blue"], bottom:["running shorts in black, mid-thigh","training trousers in dark grey, tapered"], outer:["zip-up training jacket in black","lightweight running jacket in grey"], shoes:["running shoes in white and black, cushioned","trail runners in olive and grey"], bag:["gym duffel in black nylon"], accessory:["sport watch in black rubber strap"] }
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ENVIRONMENT DATA
+// ─────────────────────────────────────────────────────────────────────────────
+const ROOMS = {
+  budget: {
+    living: ["second-hand two-seater sofa in faded grey, floor lamp with a bent shade, IKEA KALLAX unit with assorted items, worn carpet","corner sofa in dark green microfibre, worn in patches, plastic storage boxes visible, basic brown rug"],
+    kitchen: ["basic white laminate cabinets, freestanding washing machine in a corner, two-ring electric hob, mismatched mugs on the counter","galley kitchen, cheap white tiles, basic kettle and supermarket toaster, drying rack with plates"],
+    bedroom: ["double mattress on a basic metal bedframe, dark polyester duvet, clothes rail in one corner, a desk made from a door on trestles","single bed pushed against the wall, fairy lights for atmosphere, second-hand desk with monitor, clothes folded on a chair"],
+    bathroom: ["basic white bathroom suite, visible silicone sealant, row of budget shampoo bottles on the bath edge, plastic shower curtain","small bathroom, white tiles with grout that needs attention, three different brands of body wash in the shower"],
+    overview: ["small rented flat, mix of hand-me-down and flat-pack furniture, bikes or bags near the door","compact rental apartment, IKEA basics and second-hand finds, posters and photos pinned to walls"]
+  },
+  mid: {
+    living: ["IKEA three-seater sofa in light grey, jute rug, floating shelf with a curated row of books, trailing plant, framed print in a simple black frame","dusty pink velvet two-seater, LACK coffee table with a candle and magazines, several plants at different heights","low KIVIK sofa in beige, wooden coffee table with a stack of books and small vase, decent Bluetooth speaker on the shelf"],
+    kitchen: ["IKEA kitchen in white or light grey, French press on the counter, simple knife block, herbs in small terracotta pots on the windowsill","flat-pack kitchen with better handles retrofitted, good coffee dripper out, small succulent on the windowsill, decent set of pans"],
+    bedroom: ["IKEA HEMNES bed frame in white, linen duvet in off-white, one bedside table with a lamp and a book left open, simple art print above the bed","mid-range wooden bed frame, cream or sage linen duvet, two mismatched bedside tables, floor lamp in one corner"],
+    bathroom: ["white tiles with a subtly coloured grout, glass shelf with curated skincare products, small plant on the shelf, linen hand towel, simple circular mirror","small bathroom, white walls, decent shower over the bath, products arranged by height on the ledge, patterned bath mat"],
+    overview: ["rented or first-owned flat, IKEA foundation throughout with personal upgrades starting to appear — better handles, a quality lamp, one framed print","compact apartment, each room small but considered, mix of flat-pack and found pieces, plants everywhere"]
+  },
+  established: {
+    living: ["three-seater sofa in charcoal linen, wooden coffee table with art books and ceramic vase, built-in bookshelves, large plant in a quality pot, herringbone parquet floor","L-shaped sofa in warm greige, low wooden side table, framed original print, quality rug in muted ochre and beige, fireplace as focal point"],
+    kitchen: ["shaker kitchen in dark navy, quartz worktop, quality espresso machine, ceramic bowls on an open shelf, herbs in quality pots, one good cookbook propped open","handleless kitchen in off-white, solid wood worktop, cast iron pan on the hob, simple fruit bowl, good quality ceramics on display"],
+    bedroom: ["quality wooden bed frame in natural oak, good linen duvet in white or pale grey, matching bedside tables with lamps, one large framed print above the bed","upholstered bed in oatmeal linen, quality linen throw, bedside table with lamp and stack of books, quality rug on wooden floor"],
+    bathroom: ["large format white tiles, walk-in shower, products organised on a shelf, thick white towels on a heated rail, quality mirror, clean chrome fixtures","renovated bathroom, subway tile in white, quality shower, small plant on the windowsill, linen hand towel"],
+    overview: ["owned flat or house, mix of quality pieces accumulated over time, art on the walls, personal and considered","period building or quality new-build, renovated room by room, original features preserved"]
+  },
+  affluent: {
+    living: ["designer sofa in quality fabric, marble or stone coffee table, one large original artwork, quality floor rug in neutral tones, architectural quality lighting","large corner sofa in quality charcoal fabric, low travertine coffee table, one significant piece of art, quality standing lamp"],
+    kitchen: ["bespoke handleless kitchen in dark lacquer, stone or Carrara marble worktop, Gaggenau or Miele appliances, single quality flower arrangement on the island","dark navy handleless kitchen, large island with bar seating, integrated fridge and oven, quality espresso machine as the only visible appliance"],
+    bedroom: ["large upholstered headboard in quality linen, Egyptian cotton duvet layered with cashmere throw, matching bedside tables with quality lamps, one significant artwork","hotel-quality bedroom, all-white linen, custom headboard, two identical bedside tables, quality bench at the foot of the bed"],
+    bathroom: ["spa-quality bathroom, large format stone tiles, freestanding bath, quality products in a tray, thick hotel-weight towels, brushed brass or matte black fixtures","large walk-in shower with rain head, double vanity in stone, quality mirror with integrated lighting, thick white towels"],
+    overview: ["owned property renovated to a high specification, design-led throughout, quality consistent from entrance to bathroom","premium apartment or renovated house, quality in every material choice"]
+  },
+  luxury: {
+    living: ["bespoke interior, statement sofa in quality mohair, one museum-quality artwork on a white wall, marble or onyx side tables, concealed architectural lighting","minimal and architectural, a singular sofa, one large piece of art, quality coffee table as sculptural object, perfect natural light"],
+    kitchen: ["professional-grade kitchen, marble or stone worktop continuous across island and counters, Gaggenau or La Cornue appliances, single quality flower arrangement","bespoke kitchen with unlacquered brass or stone fixtures, large island, professional range with integrated hood, custom storage"],
+    bedroom: ["suite-quality bedroom, custom headboard in quality fabric, all-white linen from recognisable quality brand, two identical bedside tables","minimal luxury bedroom, bed as the singular object in the room, quality linen, bespoke curtains blocking all light, singular artwork"],
+    bathroom: ["bespoke stone bathroom, integrated vanity with stone surround, rain head and handheld, freestanding tub as sculptural object, heavy white towels","architectural bathroom, large format single tile from floor to ceiling, quality fixtures throughout, heavy towels, no product clutter"],
+    overview: ["trophy property, every material choice deliberate, no off-the-shelf elements visible, quality from the entrance to the last detail","bespoke interior by a designer, consistent material language throughout"]
+  }
+};
+
+const CAR_INTERIOR = {
+  budget: ["front seat of a compact hatchback, cloth upholstery in dark grey, basic dashboard, scuff marks on the door panel","back seat of an older saloon, fabric interior in worn beige, armrest down, plastic door card"],
+  mid: ["front seat of a mid-range family car, clean fabric interior, modern touchscreen dashboard, cup in the cupholder","back seat of a clean SUV, grey fabric interior, window slightly open, natural light coming in"],
+  established: ["front seat of a quality SUV, black leather interior, modern dashboard with clean tech, sunroof","back seat of a mid-range executive car, leather seating, rear armrest down, clean and quiet"],
+  affluent: ["front seat of a premium executive car, full leather in cream or black, ambient lighting strip, clean and quiet","back seat of a luxury saloon, heated leather seating, privacy glass, spacious and still"],
+  luxury: ["rear passenger seat of a flagship luxury car, hand-stitched leather, wood veneer trim, privacy glass","front seat of a performance car, bucket seat in quality leather, minimal interior, carbon fibre detail visible"]
+};
+
+const OFFICE = {
+  budget: ["open-plan budget office, desks in rows, strip lighting, standard-issue chairs, motivational poster on the wall","shared desk space, stacked papers, monitor on a basic stand, nearby filing cabinet, recycled cup of pens"],
+  mid: ["modern open-plan office, hot-desk style, clean desk with monitor and laptop stand, simple plant, large windows","small glass-fronted meeting room, round table, mesh chairs, whiteboard with some writing still on it"],
+  established: ["well-equipped open office, sit-stand desks, good monitors, acoustic panels on the wall, quality chairs, plants throughout","private office, quality desk with dual monitors, neatly organised files, framed print, leather chair"],
+  affluent: ["design-led office space, high-end furniture, acoustic ceiling, quality floor lamp, minimally decorated, city view","executive office, large desk, quality leather chair, subtle artwork on the wall, floor-to-ceiling window"],
+  luxury: ["architect-designed office, floor-to-ceiling glass, statement desk, single quality object on the surface, city panorama","private executive space, bespoke furniture, original artwork, premium finishes, no clutter visible"]
+};
+
+const OUTDOORS = [
+  "residential street, parked cars, brick or render terraced houses, pavement, overcast sky",
+  "quiet urban side street, cobbled or paved surface, low buildings, parked bikes, soft diffused light",
+  "city park, grass and trees, path in the background, a bench visible, natural daylight",
+  "urban park, tree-lined path, other people visible but out of focus, open sky",
+  "pedestrian area or town square, paved ground, buildings in the background, ambient foot traffic",
+  "suburban street, houses behind, pavement with garden gates, trees, afternoon light",
+  "residential neighbourhood, tree-lined street, cars parked, late afternoon light"
+];
+
+const TIDINESS = {
+  pristine: ["Surfaces completely clear, nothing out of place.","Everything put away, no personal items visible, could be a show home."],
+  tidy: ["Generally tidy — one mug on the table, a book left open on the arm of the sofa.","Ordered but inhabited, a phone charger trailing along the floor, a cardigan folded over a chair."],
+  lived: ["Comfortable lived-in quality — things left where they were last used. A jacket on the back of a chair, a half-read book on the coffee table.","Warm everyday disorder. A blanket draped off the sofa, shoes not quite put away, a few dishes drying."],
+  messy: ["Clear disorganisation — clothes on a chair, dishes in the sink, bags dumped by the door, papers spread across the table.","Lived-in beyond tidy. Laundry on the radiator, three half-drunk glasses on the coffee table, a full drying rack."]
+};
+
+const ARCH = {
+  NA: ["suburban detached house, vinyl or clapboard siding","apartment in a low-rise complex, outdoor stairwell access","brownstone or row house in an urban neighbourhood"],
+  UK: ["Victorian terraced house, tiled front path, bay window, sash windows","converted Victorian or Edwardian flat, original cornicing, high ceilings","new-build estate house, uniform brick, double-glazed windows"],
+  DE: ["Altbau apartment, pre-war building, herringbone parquet floor, high ceilings with ornate cornice","Gründerzeit building, large windows, original wooden floors, stucco ceiling details","Neubau apartment, clean and functional, modern kitchen, balcony with city view"],
+  NL: ["Dutch canal house (grachtenpand), steep internal stairs, tall narrow windows, original timber beams","Dutch rijtjeshuis (row house), small front garden, typical Dutch brick","modern Dutch apartment building, large windows, open-plan layout, balcony"]
+};
+
+const TIME_LIGHT = {
+  day: ["morning daylight through the windows, soft and directional","mid-morning light, clean and even, shadows beginning to form","overcast daylight, flat and diffused, no hard shadows","bright afternoon sun coming in at an angle, patches of light on the floor"],
+  night: ["warm lamp light, one floor lamp and one table lamp, no overhead lighting","evening, under-cabinet lighting and a living room floor lamp, layered warm light","soft warm lamps throughout, low and atmospheric","a single warm-toned floor lamp casting a pool of light, the rest of the room in soft shadow"]
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POOLS
+// ─────────────────────────────────────────────────────────────────────────────
+const ALL_REGIONS  = ['NA','UK','DE','NL'];
+const ALL_TIERS    = ['budget','mid','established','affluent','luxury'];
+const ALL_ROOMS    = ['living','kitchen','bedroom','bathroom','overview','car','office','outdoors'];
+const ALL_STYLES   = ['everyday','elevated','smart','social','offduty','lounge','active'];
+const ALL_TIDINESS = ['pristine','tidy','lived','messy'];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BUILD FUNCTIONS
+// ─────────────────────────────────────────────────────────────────────────────
+function getContextStyle(style, room, time) {
+  if (room === 'bathroom') return 'lounge';
+  if (room === 'bedroom' && time === 'night') return 'lounge';
+  if (room === 'bedroom' && time === 'day') return Math.random() < 0.6 ? 'lounge' : style;
+  if (room === 'office') {
+    if (style === 'lounge' || style === 'active') return pick(['everyday','elevated','smart']);
+    return style;
+  }
+  if (room === 'outdoors') {
+    if (style === 'lounge') return pick(['everyday','offduty','active']);
+    return style;
+  }
+  if (room === 'car') {
+    if (style === 'lounge') return pick(['everyday','offduty','elevated']);
+    return style;
+  }
+  return style;
+}
+
+function buildWardrobe(gender, ageMin, ageMax, region, style, room, time) {
+  const effectiveStyle = getContextStyle(style, room, time);
+  const age = pickAge(ageMin, ageMax);
+  const ageRange = ageToKey(age);
+  const base = TAXONOMY[gender][ageRange];
+  const regional = REGIONAL_WARD[region][gender];
+  const isDominant = effectiveStyle === 'lounge' || effectiveStyle === 'active';
+  const styleData = STYLE_WARD[effectiveStyle] ? STYLE_WARD[effectiveStyle][gender] : null;
+
+  function pool(slot) {
+    const b = base[slot] || [];
+    const r = regional[slot] || [];
+    const s = styleData ? (styleData[slot] || []) : [];
+    if (isDominant && s.length) return [...s, ...s, ...r.slice(0,2)];
+    if (s.length) return [...b, ...s, ...s, ...r];
+    return [...b, ...r];
+  }
+
+  const outerChance = room === 'outdoors' ? 0.85 : (isDominant ? 1 : 0.65);
+  const hasOuter = Math.random() < outerChance;
+  const suppressBag = effectiveStyle === 'lounge' || room === 'bathroom' || room === 'car';
+  const outfit = {};
+  ['top','bottom','shoes','accessory'].forEach(slot => {
+    const p = pool(slot);
+    if (p.length) outfit[slot] = pick(p);
+  });
+  if (!suppressBag) { const bp = pool('bag'); if (bp.length) outfit.bag = pick(bp); }
+  if (hasOuter) { const op = pool('outer'); if (op.length) outfit.outer = pick(op); }
+  return outfit;
+}
+
+function outfitStr(outfit) {
+  return ['top','bottom','outer','shoes','bag','accessory'].filter(k => outfit[k]).map(k => outfit[k]).join('. ') + '.';
+}
+
+function buildLocation(tier, room, region, time, tidiness) {
+  if (room === 'car')     return { arch:'', roomDesc: pick(CAR_INTERIOR[tier]), light: pick(TIME_LIGHT[time]), tidiStr:'' };
+  if (room === 'office')  return { arch:'', roomDesc: pick(OFFICE[tier]),       light: pick(TIME_LIGHT[time]), tidiStr:'' };
+  if (room === 'outdoors') return { arch:'', roomDesc: pick(OUTDOORS),          light: pick(TIME_LIGHT[time]), tidiStr:'' };
+  const arch     = pick(ARCH[region]);
+  const roomDesc = pick(ROOMS[tier][room]);
+  const light    = pick(TIME_LIGHT[time]);
+  const tidiStr  = pick(TIDINESS[tidiness]);
+  return { arch, roomDesc, light, tidiStr };
+}
+
+function locStrBefore(loc, room) {
+  if (room === 'car')      return `LOCATION: car interior. ${loc.roomDesc}. ${loc.light}. Not staged.`;
+  if (room === 'office')   return `LOCATION: office. ${loc.roomDesc}. ${loc.light}. Not staged.`;
+  if (room === 'outdoors') return `LOCATION: outdoors. ${loc.roomDesc}. ${loc.light}. Candid, not staged.`;
+  const labels = { living:'living room', kitchen:'kitchen', bedroom:'bedroom', bathroom:'bathroom', overview:'apartment interior' };
+  const archPart = trimFirst(loc.arch, 2);
+  const roomPart = loc.roomDesc.split(',').slice(0,3).join(',').trim();
+  return `LOCATION: ${labels[room]}, ${archPart}. ${roomPart}. ${loc.tidiStr} ${loc.light}. Not staged.`;
+}
+
+function locStrAfter(loc, room, sameScene) {
+  if (room === 'car')      return `LOCATION: car interior${sameScene ? ' — different day' : ''}. ${loc.roomDesc}. ${loc.light}. Not staged.`;
+  if (room === 'office')   return `LOCATION: office${sameScene ? ' — different day' : ''}. ${loc.roomDesc}. ${loc.light}. Not staged.`;
+  if (room === 'outdoors') return `LOCATION: outdoors${sameScene ? ' — different day' : ''}. ${loc.roomDesc}. ${loc.light}. Candid, not staged.`;
+  const labels = { living:'living room', kitchen:'kitchen', bedroom:'bedroom', bathroom:'bathroom', overview:'apartment interior' };
+  if (sameScene) {
+    return `LOCATION: same ${labels[room]}, different day. ${loc.tidiStr} ${loc.light}. Not staged.`;
+  }
+  const archPart = trimFirst(loc.arch, 2);
+  const roomPart = loc.roomDesc.split(',').slice(0,3).join(',').trim();
+  return `LOCATION: ${labels[room]}, ${archPart}. ${roomPart}. ${loc.tidiStr} ${loc.light}. Not staged.`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EFFECT PARSER
+// ─────────────────────────────────────────────────────────────────────────────
+function deriveBeforeState(effectText) {
+  const t = effectText.toLowerCase();
+  const parts = [];
+  const patterns = [
+    { r: /energetic|energy|vitality|lively|active/,       v: 'low energy, slightly fatigued expression, posture somewhat slumped' },
+    { r: /lethargic|tired|fatigue|sluggish/,               v: 'visibly lethargic, heavy eyelids, low energy in posture' },
+    { r: /smooth.*skin|skin.*smooth|glow|complexion|radiant|plump/, v: 'dull uneven skin tone, visible surface texture, slight redness' },
+    { r: /hair|volum/,                                     v: 'flat unstyled hair, slightly limp or unkempt' },
+    { r: /tidy/,                                           v: 'slightly unkempt overall appearance' },
+    { r: /pound|weight|slim|lean|loss|thin/,               v: 'visibly fuller build' },
+    { r: /confident|mood|happy|positive|uplifted/,         v: 'subdued expression, low energy in posture and face' },
+    { r: /redness|inflam|calm.*skin/,                      v: 'visible redness and inflammation across skin' },
+    { r: /puff|bloat|swell/,                               v: 'visible puffiness, slight bloating' },
+    { r: /dark.*circle|under.*eye|eye.*bag/,               v: 'pronounced dark circles under eyes, fatigued look' },
+    { r: /wrinkl|fine.*line/,                              v: 'visible fine lines and skin texture' },
+    { r: /clear.*skin|blemish|acne|spot/,                  v: 'visible blemishes or uneven skin' },
+  ];
+  for (const p of patterns) { if (p.r.test(t)) parts.push(p.v); }
+  return parts.length ? parts.join(', ') : 'baseline state before transformation';
+}
+
+function derivePoses(effectText) {
+  const t = effectText.toLowerCase();
+  const isBody = /pound|weight|slim|lean|loss|body|full.body/.test(t);
+  if (isBody) {
+    return {
+      before: 'full body, standing, facing camera, neutral expression, arms relaxed at sides, natural posture, soft neutral background — clean edge separation',
+      after:  'full body, standing, facing camera, same angle and framing as before, upright and relaxed, neutral background — clean edge separation'
+    };
+  }
+  return {
+    before: 'portrait, close crop, direct eye contact, low energy visible in expression and posture, candid and unposed',
+    after:  'portrait, close crop, direct eye contact, upright and relaxed, natural confidence, candid and genuine'
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UI STATE
+// ─────────────────────────────────────────────────────────────────────────────
+let wardMode = 'same';
+let refSrc = null;
+
+function setWardMode(mode) {
+  wardMode = mode;
+  document.getElementById('ward-same-controls').style.display = mode === 'same' ? '' : 'none';
+  document.getElementById('ward-diff-controls').style.display = mode === 'diff' ? '' : 'none';
+  document.getElementById('ward-same-btn').classList.toggle('active', mode === 'same');
+  document.getElementById('ward-diff-btn').classList.toggle('active', mode === 'diff');
+}
+
+function handleFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    refSrc = e.target.result;
+    const preview = document.getElementById('img-preview');
+    preview.src = refSrc;
+    preview.style.display = 'block';
+    document.getElementById('ref-url').value = '';
+    document.querySelector('.upload-zone-text').innerHTML = `<span>${file.name}</span>`;
+  };
+  reader.readAsDataURL(file);
+}
+
+function handleUrl(url) {
+  if (url.trim()) {
+    refSrc = url.trim();
+    const preview = document.getElementById('img-preview');
+    preview.src = refSrc;
+    preview.style.display = 'block';
+  }
+}
+
+function mirrorScene() {
+  const beforeRoom = document.getElementById('before-room').value;
+  const beforeTier = document.getElementById('before-tier').value;
+  const beforeTime = document.getElementById('before-time').value;
+  const beforeTidi = document.getElementById('before-tidiness').value;
+  document.getElementById('after-room').value = beforeRoom;
+  document.getElementById('after-tier').value = beforeTier;
+  document.getElementById('after-time').value = beforeTime === 'day' ? 'night' : 'day';
+  const shift = { random:'tidy', pristine:'pristine', tidy:'pristine', lived:'tidy', messy:'lived' };
+  document.getElementById('after-tidiness').value = shift[beforeTidi] || 'tidy';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GENERATE
+// ─────────────────────────────────────────────────────────────────────────────
+function generate() {
+  const effectText = document.getElementById('effect').value.trim();
+  if (!effectText) { document.getElementById('effect').focus(); document.getElementById('effect').style.borderColor = '#f00'; return; }
+  document.getElementById('effect').style.borderColor = '';
+
+  const gender   = document.getElementById('gender').value;
+  const ageMin   = parseInt(document.getElementById('age-min').value) || 28;
+  const ageMax   = parseInt(document.getElementById('age-max').value) || 42;
+  const region   = resolve(document.getElementById('region').value, ALL_REGIONS);
+  const beforeOverride = document.getElementById('before-state').value.trim();
+
+  const beforeRoomRaw = document.getElementById('before-room').value;
+  const afterRoomRaw  = document.getElementById('after-room').value;
+  const beforeRoom    = resolve(beforeRoomRaw, ALL_ROOMS);
+  const afterRoom     = resolve(afterRoomRaw, ALL_ROOMS);
+  const beforeTier    = resolve(document.getElementById('before-tier').value, ALL_TIERS);
+  const afterTier     = resolve(document.getElementById('after-tier').value, ALL_TIERS);
+  const beforeTime    = document.getElementById('before-time').value;
+  const afterTime     = document.getElementById('after-time').value;
+  const beforeTidi    = resolve(document.getElementById('before-tidiness').value, ALL_TIDINESS);
+  const afterTidi     = resolve(document.getElementById('after-tidiness').value, ALL_TIDINESS);
+  const sameScene     = beforeRoom === afterRoom;
+
+  // Wardrobe
+  let wardBefore, wardAfter;
+  if (wardMode === 'same') {
+    wardBefore = buildWardrobe(gender, ageMin, ageMax, region, resolve(document.getElementById('style-shared').value, ALL_STYLES), beforeRoom, beforeTime);
+    wardAfter  = wardBefore;
+  } else {
+    wardBefore = buildWardrobe(gender, ageMin, ageMax, region, resolve(document.getElementById('style-before').value, ALL_STYLES), beforeRoom, beforeTime);
+    wardAfter  = buildWardrobe(gender, ageMin, ageMax, region, resolve(document.getElementById('style-after').value, ALL_STYLES), afterRoom, afterTime);
+  }
+
+  // Location
+  const locBefore = buildLocation(beforeTier, beforeRoom, region, beforeTime, beforeTidi);
+  const locAfter  = buildLocation(afterTier, afterRoom, region, afterTime, afterTidi);
+
+  // States
+  const beforeState = beforeOverride || deriveBeforeState(effectText);
+  const afterState  = effectText;
+  const { before: poseBefore, after: poseAfter } = derivePoses(effectText);
+
+  // Reference
+  const refTag = refSrc
+    ? (refSrc.startsWith('http') ? `[reference image: ${refSrc}]` : '[reference image attached]')
+    : '[no reference provided — generate subject from context]';
+
+  const beforePrompt = [
+    `SUBJECT: ${refTag}. Baseline state — ${beforeState}. No visible makeup.`,
+    locStrBefore(locBefore, beforeRoom),
+    `WARDROBE: ${outfitStr(wardBefore)}`,
+    `POSE: ${poseBefore}.`
+  ].join('\n\n');
+
+  const sameWardNote = wardMode === 'same' ? ' [same outfit as before]' : '';
+  const afterPrompt = [
+    `SUBJECT: [same reference — same person, different day]. After state — ${afterState}. No visible makeup.`,
+    locStrAfter(locAfter, afterRoom, sameScene),
+    `WARDROBE: ${outfitStr(wardAfter)}${sameWardNote}`,
+    `POSE: ${poseAfter}.`
+  ].join('\n\n');
+
+  document.getElementById('out-before').value = beforePrompt;
+  document.getElementById('out-after').value  = afterPrompt;
+}
+
+function copyOut(which) {
+  const txt = document.getElementById('out-' + which).value;
+  if (txt) navigator.clipboard.writeText(txt);
+}
+
+function copyBoth() {
+  const b = document.getElementById('out-before').value;
+  const a = document.getElementById('out-after').value;
+  if (b || a) navigator.clipboard.writeText(`BEFORE\n\n${b}\n\n${'─'.repeat(40)}\n\nAFTER\n\n${a}`);
+}
+</script>
+</body>
+</html>
