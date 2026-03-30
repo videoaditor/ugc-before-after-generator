@@ -60,6 +60,12 @@ input[type=number] { min-width: 54px; }
 .out-box:focus { outline: none; border-color: #bbb; }
 .out-actions { display: flex; gap: 8px; margin: 8px 0 18px; }
 .divider-out { height: 0.5px; background: #eee; margin: 16px 0; }
+.ward-cards { margin-top: 8px; display: flex; flex-direction: column; gap: 5px; }
+.ward-card { padding: 8px 10px; border: 0.5px solid #ddd; border-radius: 7px; font-size: 11.5px; color: #444; cursor: pointer; line-height: 1.6; transition: border-color 0.1s; }
+.ward-card:hover { border-color: #999; background: #fafafa; }
+.ward-card.selected { border: 1.5px solid #111; background: #f5f5f5; color: #111; }
+.ward-gen-row { display: flex; gap: 6px; margin-top: 6px; }
+.ward-gen-row .btn { flex: 1; }
 </style>
 </head>
 <body>
@@ -80,9 +86,10 @@ input[type=number] { min-width: 54px; }
     <div class="panel-title">Reference image</div>
     <div class="upload-zone" id="upload-zone">
       <input type="file" id="ref-file" accept="image/*" onchange="handleFile(this)">
-      <div class="upload-zone-text">Drop image here or <span>click to upload</span></div>
+      <div class="upload-zone-text">Drop image, <span>click to upload</span>, or paste from clipboard</div>
     </div>
     <img class="img-preview" id="img-preview" alt="Reference">
+    <button id="ref-clear" class="btn btn-sm btn-wide" onclick="clearReference()" style="display:none;margin-top:8px;">Clear ×</button>
     <div class="or-row">or</div>
     <div class="field">
       <label>Image URL</label>
@@ -143,19 +150,25 @@ input[type=number] { min-width: 54px; }
       <button class="ward-btn" id="ward-diff-btn" onclick="setWardMode('diff')">Different outfits</button>
     </div>
     <div id="ward-same-controls">
-      <div class="field">
-        <label>Style</label>
-        <select id="style-shared">
-          <option value="random">— Random —</option>
-          <option value="everyday" selected>Everyday</option>
-          <option value="elevated">Elevated</option>
-          <option value="smart">Smart</option>
-          <option value="social">Social</option>
-          <option value="offduty">Off-duty</option>
-          <option value="lounge">Lounge</option>
-          <option value="active">Active</option>
-        </select>
+      <div class="field-row">
+        <div class="field">
+          <label>Style</label>
+          <select id="style-shared">
+            <option value="random">— Random —</option>
+            <option value="everyday" selected>Everyday</option>
+            <option value="elevated">Elevated</option>
+            <option value="smart">Smart</option>
+            <option value="social">Social</option>
+            <option value="offduty">Off-duty</option>
+            <option value="lounge">Lounge</option>
+            <option value="active">Active</option>
+          </select>
+        </div>
       </div>
+      <div class="ward-gen-row">
+        <button class="btn btn-sm" onclick="genWardCards('shared')">Generate options</button>
+      </div>
+      <div id="ward-cards-shared" class="ward-cards"></div>
     </div>
     <div id="ward-diff-controls" style="display:none;">
       <div class="field-row">
@@ -186,6 +199,12 @@ input[type=number] { min-width: 54px; }
           </select>
         </div>
       </div>
+      <div class="ward-gen-row">
+        <button class="btn btn-sm" onclick="genWardCards('before')">Before options</button>
+        <button class="btn btn-sm" onclick="genWardCards('after')">After options</button>
+      </div>
+      <div id="ward-cards-before" class="ward-cards"></div>
+      <div id="ward-cards-after" class="ward-cards"></div>
     </div>
   </div>
 
@@ -713,33 +732,95 @@ let refSrc = null;
 
 function setWardMode(mode) {
   wardMode = mode;
+  selectedWardShared = null; selectedWardBefore = null; selectedWardAfter = null;
+  ['shared','before','after'].forEach(w => { const el = document.getElementById(`ward-cards-${w}`); if (el) el.innerHTML = ''; });
   document.getElementById('ward-same-controls').style.display = mode === 'same' ? '' : 'none';
   document.getElementById('ward-diff-controls').style.display = mode === 'diff' ? '' : 'none';
   document.getElementById('ward-same-btn').classList.toggle('active', mode === 'same');
   document.getElementById('ward-diff-btn').classList.toggle('active', mode === 'diff');
 }
 
+function setReference(src, label) {
+  refSrc = src;
+  const preview = document.getElementById('img-preview');
+  preview.src = src;
+  preview.style.display = 'block';
+  document.querySelector('.upload-zone-text').innerHTML = `<span>${label}</span>`;
+  document.getElementById('ref-clear').style.display = '';
+}
+
+function clearReference() {
+  refSrc = null;
+  const preview = document.getElementById('img-preview');
+  preview.style.display = 'none';
+  preview.src = '';
+  document.getElementById('ref-url').value = '';
+  document.querySelector('.upload-zone-text').innerHTML = `Drop image, <span>click to upload</span>, or paste from clipboard`;
+  document.getElementById('ref-clear').style.display = 'none';
+}
+
 function handleFile(input) {
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = e => {
-    refSrc = e.target.result;
-    const preview = document.getElementById('img-preview');
-    preview.src = refSrc;
-    preview.style.display = 'block';
-    document.getElementById('ref-url').value = '';
-    document.querySelector('.upload-zone-text').innerHTML = `<span>${file.name}</span>`;
-  };
+  reader.onload = e => { setReference(e.target.result, file.name); document.getElementById('ref-url').value = ''; };
   reader.readAsDataURL(file);
 }
 
 function handleUrl(url) {
-  if (url.trim()) {
-    refSrc = url.trim();
-    const preview = document.getElementById('img-preview');
-    preview.src = refSrc;
-    preview.style.display = 'block';
+  if (url.trim()) setReference(url.trim(), url.trim());
+}
+
+// Clipboard paste support
+document.addEventListener('paste', function(e) {
+  const items = (e.clipboardData || e.originalEvent.clipboardData || {}).items || [];
+  for (const item of items) {
+    if (item.type.indexOf('image') !== -1) {
+      const file = item.getAsFile();
+      const reader = new FileReader();
+      reader.onload = ev => setReference(ev.target.result, 'Pasted image');
+      reader.readAsDataURL(file);
+      e.preventDefault();
+      break;
+    }
+  }
+});
+
+// ─── Wardrobe card generator ───────────────────────────────────────────────
+let selectedWardShared = null;
+let selectedWardBefore = null;
+let selectedWardAfter  = null;
+
+function genWardCards(which) {
+  const gender = document.getElementById('gender').value;
+  const ageMin = parseInt(document.getElementById('age-min').value) || 28;
+  const ageMax = parseInt(document.getElementById('age-max').value) || 42;
+  const region = resolve(document.getElementById('region').value, ALL_REGIONS);
+  const styleId = which === 'after' ? 'style-after' : which === 'before' ? 'style-before' : 'style-shared';
+  const roomId  = which === 'after' ? 'after-room' : 'before-room';
+  const timeId  = which === 'after' ? 'after-time' : 'before-time';
+  const style   = resolve(document.getElementById(styleId).value, ALL_STYLES);
+  const room    = resolve(document.getElementById(roomId).value, ALL_ROOMS);
+  const time    = document.getElementById(timeId).value;
+  const container = document.getElementById(`ward-cards-${which}`);
+  container.innerHTML = '';
+  if (which === 'shared') selectedWardShared = null;
+  else if (which === 'before') selectedWardBefore = null;
+  else selectedWardAfter = null;
+  for (let i = 0; i < 5; i++) {
+    const ward = buildWardrobe(gender, ageMin, ageMax, region, style, room, time);
+    const str  = outfitStr(ward);
+    const card = document.createElement('div');
+    card.className = 'ward-card';
+    card.textContent = str;
+    card.onclick = () => {
+      container.querySelectorAll('.ward-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      if (which === 'shared') selectedWardShared = str;
+      else if (which === 'before') selectedWardBefore = str;
+      else selectedWardAfter = str;
+    };
+    container.appendChild(card);
   }
 }
 
@@ -781,14 +862,14 @@ function generate() {
   const afterTidi     = resolve(document.getElementById('after-tidiness').value, ALL_TIDINESS);
   const sameScene     = beforeRoom === afterRoom;
 
-  // Wardrobe
-  let wardBefore, wardAfter;
+  // Wardrobe — use selected card string if picked, otherwise auto-generate
+  let wardBeforeStr, wardAfterStr;
   if (wardMode === 'same') {
-    wardBefore = buildWardrobe(gender, ageMin, ageMax, region, resolve(document.getElementById('style-shared').value, ALL_STYLES), beforeRoom, beforeTime);
-    wardAfter  = wardBefore;
+    wardBeforeStr = selectedWardShared || outfitStr(buildWardrobe(gender, ageMin, ageMax, region, resolve(document.getElementById('style-shared').value, ALL_STYLES), beforeRoom, beforeTime));
+    wardAfterStr  = wardBeforeStr;
   } else {
-    wardBefore = buildWardrobe(gender, ageMin, ageMax, region, resolve(document.getElementById('style-before').value, ALL_STYLES), beforeRoom, beforeTime);
-    wardAfter  = buildWardrobe(gender, ageMin, ageMax, region, resolve(document.getElementById('style-after').value, ALL_STYLES), afterRoom, afterTime);
+    wardBeforeStr = selectedWardBefore || outfitStr(buildWardrobe(gender, ageMin, ageMax, region, resolve(document.getElementById('style-before').value, ALL_STYLES), beforeRoom, beforeTime));
+    wardAfterStr  = selectedWardAfter  || outfitStr(buildWardrobe(gender, ageMin, ageMax, region, resolve(document.getElementById('style-after').value, ALL_STYLES), afterRoom, afterTime));
   }
 
   // Location
@@ -817,7 +898,7 @@ function generate() {
   const beforePrompt = [
     beforeSubjectLine,
     locStrBefore(locBefore, beforeRoom),
-    `WARDROBE: ${outfitStr(wardBefore)}`,
+    `WARDROBE: ${wardBeforeStr}`,
     `POSE: ${poseBefore}.`
   ].join('\n\n');
 
@@ -825,7 +906,7 @@ function generate() {
   const afterPrompt = [
     afterSubjectLine,
     locStrAfter(locAfter, afterRoom, sameScene),
-    `WARDROBE: ${outfitStr(wardAfter)}${sameWardNote}`,
+    `WARDROBE: ${wardAfterStr}${sameWardNote}`,
     `POSE: ${poseAfter}.`
   ].join('\n\n');
 
