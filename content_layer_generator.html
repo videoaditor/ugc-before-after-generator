@@ -160,6 +160,22 @@ input[type=number] { min-width: 72px; }
         </select>
       </div>
     </div>
+    <div class="field-row" style="margin-top:6px;">
+      <div class="field">
+        <label>Body Type</label>
+        <select id="body-type">
+          <option value="random" selected>— Random —</option>
+          <option value="slim">Slim / Lean</option>
+          <option value="athletic">Athletic</option>
+          <option value="average">Average</option>
+          <option value="curvy">Curvy (F) / Stocky (M)</option>
+          <option value="overweight">Overweight</option>
+          <option value="plus">Plus Size</option>
+          <option value="petite">Petite / Compact</option>
+          <option value="tall">Tall</option>
+        </select>
+      </div>
+    </div>
   </div>
 
   <div class="divider"></div>
@@ -392,6 +408,17 @@ const BUILD = {
     "tall, around 183–187cm, broad build, wide shoulders",
     "average height around 175–179cm, slight paunch, moderate shoulder width"
   ]
+};
+
+const BODY_TYPE_DESC = {
+  slim:     { F: ["slim, lean build, narrow silhouette","slight frame, slim build, light proportions","lean and slender, minimal curves"], M: ["slim, lean build, narrow frame","lean build, light musculature, slight frame","slender and narrow-shouldered"] },
+  athletic: { F: ["athletic build, toned and defined","athletic figure, strong shoulders, lean muscle","fit build, visible muscle tone, active silhouette"], M: ["athletic build, broad shoulders, defined physique","muscular and toned, broad chest, tapered waist","strong build, defined chest and arms"] },
+  average:  { F: ["average build, balanced proportions","average height, natural silhouette, moderate frame","mid-range build, neither slim nor heavy"], M: ["average build, balanced proportions","average frame, moderate build, natural silhouette","mid-range physique, moderate shoulder width"] },
+  curvy:    { F: ["curvy figure, defined waist, fuller hips and bust","hourglass build, pronounced waist definition, rounded hips","full bust and hips, nipped waist"], M: ["stocky build, wide shoulders, compact and solid","broad and thick-set, short and powerful frame","squat, stocky, wide-shouldered"] },
+  overweight: { F: ["heavier build, visible weight above baseline — fuller face, rounder midsection, softer silhouette","overweight build, fuller chest and stomach, heavier arms","heavyset, extra weight visible at waist and hips"], M: ["overweight build, full chest and stomach, wide waist","heavier frame, visible weight — rounder face, full midsection","stocky and heavy, extra weight distributed across torso"] },
+  plus:     { F: ["plus-size figure, full chest and waist, rounded silhouette","plus-size build, soft rounded silhouette, wider frame","larger build, full across chest, hips and waist"], M: ["plus-size build, heavy-set, wide frame","larger build, broad across chest and stomach","full-figured, heavy midsection, wide shoulders"] },
+  petite:   { F: ["petite frame, slight build, compact proportions","petite, around 155–158cm, slim and slight","small frame, short stature, delicate build"], M: ["compact build, shorter frame, solid proportions","shorter stature, around 168–170cm, compact build","short and sturdy, compact frame"] },
+  tall:     { F: ["tall, around 170–175cm, lean build, long limbs","tall frame, slim proportions, long legs","tall and upright, long-limbed, minimal curves"], M: ["tall, around 185–190cm, lean build, long limbs","tall and broad-shouldered, upright posture","tall frame, long legs, wide shoulders"] },
 };
 
 const FACE = {
@@ -832,7 +859,7 @@ const HAIR_COLOR_POOL = {
 // ─────────────────────────────────────────────────────────────────────────────
 // BUILD FUNCTIONS
 // ─────────────────────────────────────────────────────────────────────────────
-function buildSubject(gender, ageMin, ageMax, region, toneRaw, hairLengthRaw, hairColorRaw) {
+function buildSubject(gender, ageMin, ageMax, region, toneRaw, hairLengthRaw, hairColorRaw, bodyTypeRaw) {
   const age  = pickAge(ageMin, ageMax);
   const key  = ageToKey(age);
 
@@ -842,7 +869,9 @@ function buildSubject(gender, ageMin, ageMax, region, toneRaw, hairLengthRaw, ha
              : toneRaw;
   const skin = pick(SKIN[tone][key]);
 
-  const build   = pick(BUILD[gender]);
+  const build = (bodyTypeRaw && bodyTypeRaw !== 'random' && BODY_TYPE_DESC[bodyTypeRaw])
+    ? pick(BODY_TYPE_DESC[bodyTypeRaw][gender])
+    : pick(BUILD[gender]);
   const face    = pick(FACE[gender]);
   const eyes    = pick(EYES[gender]);
   const notable = Math.random() < 0.6 ? pick(NOTABLE[gender]) : null;
@@ -1086,6 +1115,7 @@ function generate() {
 
   const hairLengthRaw = document.getElementById('hair-length').value;
   const hairColorRaw  = document.getElementById('hair-color').value;
+  const bodyTypeRaw   = document.getElementById('body-type').value;
   const poseRaw       = document.getElementById('pose').value;
 
   const offset = sets.length;
@@ -1098,7 +1128,7 @@ function generate() {
     const tidiness = resolve(tidiRaw,   ALL_TIDINESS);
     const poseType = resolve(poseRaw,   ALL_POSES);
     const poseDesc = pick(POSE[poseType]);
-    const subj = buildSubject(gender, ageMin, ageMax, region, toneRaw, hairLengthRaw, hairColorRaw);
+    const subj = buildSubject(gender, ageMin, ageMax, region, toneRaw, hairLengthRaw, hairColorRaw, bodyTypeRaw);
     const ward = buildWardrobe(gender, ageMin, ageMax, region, style, room, time);
     const loc  = buildLocation(tier, room, region, time, tidiness);
     const ageRange = `${ageMin}–${ageMax}`;
@@ -1149,7 +1179,7 @@ function globalRandom() {
   const poseType    = pick(ALL_POSES);
   const poseDesc    = pick(POSE[poseType]);
 
-  const subj = buildSubject(gender, ageMin, ageMax, region, 'regional', hairLength, hairColor);
+  const subj = buildSubject(gender, ageMin, ageMax, region, 'regional', hairLength, hairColor, 'random');
   const ward = buildWardrobe(gender, ageMin, ageMax, region, style, room, time);
   const loc  = buildLocation(tier, room, region, time, tidiness);
 
