@@ -251,6 +251,7 @@ input[type=number] { min-width: 72px; }
           <option value="microphone">Microphone — influencer</option>
           <option value="podcast">Podcast setup</option>
           <option value="fullbody">Full body — neutral bg</option>
+          <option value="showing_product">Showing product</option>
         </select>
       </div>
     </div>
@@ -734,6 +735,14 @@ const POSE = {
     "full body, standing at a slight three-quarter angle, weight on one leg, relaxed posture, light grey seamless background, even diffused lighting, no shadow on background",
     "full body, standing, hands loosely at sides or in pockets, looking into lens, white seamless background, soft box lighting, no location context",
     "full body, seated on a plain stool, upright but relaxed, facing camera, white or neutral grey background, clean studio light, legs visible to ankle"
+  ],
+  showing_product: [
+    "portrait, holding product up toward camera with one hand, label or front face visible, other hand relaxed, direct eye contact, mid-chest crop, candid and natural",
+    "portrait, product held at chest level in both hands, slight lean forward, looking into lens as if recommending it, close crop",
+    "portrait, product held next to face at cheek level, slight smile, comparing product to skin or face, close crop, warm and direct",
+    "portrait, one hand presenting product with open palm toward camera, other arm relaxed, natural delivery, mid-chest frame",
+    "portrait, looking down at product in hands then back up at camera, caught mid-gesture, unscripted energy, chest-up crop",
+    "portrait, product held up and slightly tilted so packaging reads clearly, relaxed grip, talking to camera as if explaining it, mid-chest crop"
   ]
 };
 
@@ -971,7 +980,7 @@ function toPrompt(subj, ward, loc, poseDesc, gender, room, region) {
 // LABELS + RANDOM POOLS
 // ─────────────────────────────────────────────────────────────────────────────
 const REGION_LABELS = { NA:'N. America', UK:'UK', DE:'Germany', NL:'Netherlands' };
-const POSE_LABELS   = { talking_cam:'Talking to cam', selfie:'Selfie', earphones:'Earphones', microphone:'Microphone', podcast:'Podcast', fullbody:'Full body' };
+const POSE_LABELS   = { talking_cam:'Talking to cam', selfie:'Selfie', earphones:'Earphones', microphone:'Microphone', podcast:'Podcast', fullbody:'Full body', showing_product:'Showing product' };
 const TONE_LABELS   = { fair:'Fair', light:'Light', 'light-medium':'Light-Med', medium:'Medium', 'medium-deep':'Med-Deep', deep:'Deep' };
 const STYLE_LABELS  = { everyday:'Everyday', elevated:'Elevated', smart:'Smart', social:'Social', offduty:'Off-duty', lounge:'Lounge', active:'Active' };
 const TIER_LABELS   = { budget:'Budget', mid:'Mid', established:'Established', affluent:'Affluent', luxury:'Luxury' };
@@ -987,7 +996,7 @@ const ALL_TIMES       = ['day','night'];
 const ALL_TIDINESS    = ['pristine','tidy','lived','messy'];
 const ALL_HAIR_LENGTHS = ['xshort','short','medium','long'];
 const ALL_HAIR_COLORS  = ['blonde','light-brown','dark-brown','black','auburn','gray','white','age-matched'];
-const ALL_POSES        = ['talking_cam','selfie','earphones','microphone','podcast','fullbody'];
+const ALL_POSES        = ['talking_cam','selfie','earphones','microphone','podcast','fullbody','showing_product'];
 
 function resolve(val, options) {
   return val === 'random' ? pick(options) : val;
