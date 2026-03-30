@@ -674,6 +674,22 @@ function deriveBeforeState(effectText) {
   return parts.length ? parts.join(', ') : 'baseline state before transformation';
 }
 
+// Per-dimension instructions telling the model to deviate FROM the reference image
+function deriveReferenceDeviation(effectText) {
+  const t = effectText.toLowerCase();
+  const deviations = [];
+  if (/pound|weight|slim|lean|loss|thin/.test(t))
+    deviations.push('body should be visibly heavier than reference — softer figure, fuller face, less defined waist, rounder midsection');
+  if (/hair|volum/.test(t))
+    deviations.push('hair should be visibly worse than reference — flat, unstyled, slightly unkempt or dishevelled');
+  if (/smooth.*skin|skin.*smooth|glow|complexion|radiant|plump|clear.*skin|blemish|acne|spot|redness|inflam|wrinkl|fine.*line|dark.*circle|puff|bloat/.test(t))
+    deviations.push('skin should be visibly worse than reference — dull, uneven, textured');
+  if (/energetic|energy|vitality|lively|confident|mood|happy|positive/.test(t))
+    deviations.push('posture and expression should be visibly lower energy than reference — slightly slouched, fatigued');
+  if (!deviations.length) return null;
+  return `Use reference for identity only. ${deviations.join('. ')}. This is the BEFORE — intentionally below reference quality in these dimensions.`;
+}
+
 function derivePoses(effectText) {
   const t = effectText.toLowerCase();
   const isBody = /pound|weight|slim|lean|loss|body|full.body/.test(t);
@@ -783,14 +799,23 @@ function generate() {
   const beforeState = beforeOverride || deriveBeforeState(effectText);
   const afterState  = effectText;
   const { before: poseBefore, after: poseAfter } = derivePoses(effectText);
+  const refDeviation = deriveReferenceDeviation(effectText);
 
   // Reference
   const refTag = refSrc
     ? (refSrc.startsWith('http') ? `[reference image: ${refSrc}]` : '[reference image attached]')
     : '[no reference provided — generate subject from context]';
 
+  // BEFORE subject: use ref for identity, but deviate in relevant dimensions
+  const beforeSubjectLine = refDeviation
+    ? `SUBJECT: ${refTag}. ${refDeviation} Before state: ${beforeState}. No visible makeup.`
+    : `SUBJECT: ${refTag}. Baseline state — ${beforeState}. No visible makeup.`;
+
+  // AFTER subject: match reference closely, show improvement
+  const afterSubjectLine = `SUBJECT: [same reference — same person, different day]. Match reference closely — this is the AFTER state. ${afterState}. No visible makeup.`;
+
   const beforePrompt = [
-    `SUBJECT: ${refTag}. Baseline state — ${beforeState}. No visible makeup.`,
+    beforeSubjectLine,
     locStrBefore(locBefore, beforeRoom),
     `WARDROBE: ${outfitStr(wardBefore)}`,
     `POSE: ${poseBefore}.`
@@ -798,7 +823,7 @@ function generate() {
 
   const sameWardNote = wardMode === 'same' ? ' [same outfit as before]' : '';
   const afterPrompt = [
-    `SUBJECT: [same reference — same person, different day]. After state — ${afterState}. No visible makeup.`,
+    afterSubjectLine,
     locStrAfter(locAfter, afterRoom, sameScene),
     `WARDROBE: ${outfitStr(wardAfter)}${sameWardNote}`,
     `POSE: ${poseAfter}.`
