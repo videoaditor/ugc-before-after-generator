@@ -929,15 +929,18 @@ function buildWardrobe(gender, ageMin, ageMax, region, style, room, time) {
     return [...b, ...r];
   }
 
-  // Outdoors: outer is very likely; lounge/bathroom/bedroom: suppress bag
+  // Outdoors: outer is very likely; indoor home rooms: suppress shoes + bag
   const outerChance = room === 'outdoors' ? 0.85 : (isDominant ? 1 : 0.65);
   const hasOuter = Math.random() < outerChance;
-  const suppressBag = effectiveStyle === 'lounge' || room === 'bathroom' || room === 'car';
+  const indoorHome = ['living','kitchen','bedroom','bathroom','overview'].includes(room);
+  const suppressBag   = effectiveStyle === 'lounge' || room === 'bathroom' || room === 'car' || indoorHome;
+  const suppressShoes = indoorHome;
   const outfit = {};
-  ['top','bottom','shoes','accessory'].forEach(slot => {
+  ['top','bottom','accessory'].forEach(slot => {
     const p = pool(slot);
     if (p.length) outfit[slot] = pick(p);
   });
+  if (!suppressShoes) { const sp = pool('shoes'); if (sp.length) outfit.shoes = pick(sp); }
   if (!suppressBag) {
     const bp = pool('bag');
     if (bp.length) outfit.bag = pick(bp);
